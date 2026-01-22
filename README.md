@@ -9,17 +9,31 @@ EchoSphere is a real-time location-based voice messaging platform that prioritiz
 ## ✨ Features Implemented
 
 ### Phase 1: Authentication & Privacy ✅
-- **Secure Authentication**: Lucia-based session management with Argon2id password hashing
-- **Privacy-First Location**: Fuzzy geolocation (±200m jitter) to protect exact user positions
-- **User Management**: Signup, login, logout with session cookies
-- **Protected Routes**: Authentication middleware on API endpoints
+- **Secure Authentication**: Lucia-based session management with Argon2id password hashing.
+- **Privacy-First Location**: Fuzzy geolocation (±200m jitter) to protect exact user positions.
+
+### Phase 2: Safety & Moderation ✅
+- **Blocking System**: Complete user-to-user blocking functionality.
+- **Reporting System**: Abuse reporting for Pins and Users with auto-flagging logic.
+- **Content Filtering**: Nearby discovery automatically hides pins from blocked users.
+
+### Phase 3: Voice Masking & Core UX ✅
+- **Voice Masking**: Client-side pitch shifting using Web Audio API for maximum privacy.
+- **Real-time Map**: WebSocket integration for instant pin display and location broadcasting.
+- **Profile Management**: Premium modal for updates, avatars, and reputation tracking.
+
+### Phase 4: Social Connections & Final Polish ✅
+- **Social Connections**: Real-time connection request inbox with voice intros.
+- **Real-time Notifications**: Direct WebSocket-based social alerts (Bell notification).
+- **PWA Ready**: Manifest, mobile-optimized viewport, and high-quality app icon.
 
 ## 🛠️ Tech Stack
 
 ### Frontend
-- **Next.js 16** (App Router, Turbopack)
-- **React 19** with TypeScript
+- **Next.js 14** (App Router)
+- **React 18** with TypeScript
 - **Mapbox GL** for interactive maps
+- **Web Audio API** for client-side voice processing
 - **TailwindCSS** for styling
 - **SWR** for data fetching
 
@@ -27,12 +41,13 @@ EchoSphere is a real-time location-based voice messaging platform that prioritiz
 - **Bun** runtime
 - **Hono** web framework
 - **Drizzle ORM** with PostgreSQL
-- **Lucia** authentication
+- **Lucia v3** authentication
 - **PostGIS** for geospatial queries
+- **WebSocket** for real-time orchestration
 
 ### Infrastructure
 - **PostgreSQL** with PostGIS extension
-- **Redis** for caching
+- **Redis** for stateful caching
 - **MinIO** (S3-compatible) for audio storage
 - **Docker Compose** for local development
 
@@ -41,7 +56,7 @@ EchoSphere is a real-time location-based voice messaging platform that prioritiz
 ### Prerequisites
 - Node.js 18+ or Bun
 - Docker & Docker Compose
-- Git
+- Mapbox API Token
 
 ### Installation
 
@@ -57,95 +72,27 @@ EchoSphere is a real-time location-based voice messaging platform that prioritiz
    ```
 
 3. **Set up environment variables**
-   
-   Create `apps/api/.env`:
-   ```env
-   DATABASE_URL=postgres://echo_user:echo_password@localhost:5432/echosphere
-   MINIO_ENDPOINT=localhost
-   MINIO_PORT=9000
-   MINIO_ACCESS_KEY=minioadmin
-   MINIO_SECRET_KEY=minioadmin
-   ```
+   - Configure `.env` in `apps/api` and `.env.local` in `apps/web` (see [Project Setup](#project-setup) for details).
 
-   Create `apps/web/.env.local`:
-   ```env
-   NEXT_PUBLIC_MAPBOX_TOKEN=your_mapbox_token_here
-   NEXT_PUBLIC_API_URL=http://localhost:3001
-   ```
-
-4. **Install dependencies**
+4. **Install dependencies & Start**
    ```bash
-   # API
-   cd apps/api
+   # From root
    npm install
-   
-   # Web
-   cd ../web
-   npm install
-   ```
-
-5. **Run database migrations**
-   ```bash
-   cd apps/api
-   # Apply initial schema
-   docker exec -i echosphere-db-1 psql -U echo_user -d echosphere < ../../migration.sql
-   
-   # Apply auth migration
-   docker exec -i echosphere-db-1 psql -U echo_user -d echosphere < ../../migration_auth.sql
-   ```
-
-6. **Start development servers**
-   ```bash
-   # Terminal 1 - API
-   cd apps/api
-   npm run dev
-   
-   # Terminal 2 - Web
-   cd apps/web
    npm run dev
    ```
 
-7. **Access the application**
-   - Frontend: http://localhost:3000
-   - API: http://localhost:3001
-   - MinIO Console: http://localhost:9001
+## 🔐 Security & Privacy
 
-## 📁 Project Structure
+- **On-Device Masking**: Voice masking is applied *before* upload, ensuring the original voice never leaves the user's device.
+- **Fuzzy Mapping**: Publicly visible pin locations are jittered to prevent precise tracking.
+- **Gated Connections**: Users must send a voice intro to request a connection; no direct messaging without consent.
 
-```
-EchoSphere/
-├── apps/
-│   ├── api/              # Bun + Hono backend
-│   │   ├── src/
-│   │   │   ├── auth.ts   # Lucia configuration
-│   │   │   ├── db/       # Drizzle schema & connection
-│   │   │   ├── routes/   # API endpoints
-│   │   │   └── services/ # Business logic
-│   │   └── drizzle/      # Generated migrations
-│   └── web/              # Next.js frontend
-│       ├── app/          # App router pages
-│       ├── components/   # React components
-│       └── hooks/        # Custom hooks
-├── docker-compose.yml    # Infrastructure setup
-├── migration.sql         # Initial database schema
-└── migration_auth.sql    # Auth system migration
-```
-
-## 🔐 Security Features
-
-- **Password Hashing**: Argon2id (industry standard)
-- **Session Management**: HTTP-only cookies with CSRF protection
-- **Location Privacy**: Fuzzy coordinates prevent exact location tracking
-- **Environment Isolation**: Secrets managed via `.env` files (never committed)
-
-## 🗺️ Roadmap
+## 🗺️ Roadmap Status
 
 - [x] Phase 1: Authentication & Privacy
-- [ ] Phase 2: Voice Recording & Playback
-- [ ] Phase 3: Real-time Discovery
-- [ ] Phase 4: Connection Safety (Blocking, Reporting)
-- [ ] Phase 5: Voice Masking
-- [ ] Phase 6: Production Deployment
+- [x] Phase 2: Safety & Moderation
+- [x] Phase 3: Voice Masking & Core UX
+- [x] Phase 4: Social Connections & Final Polish
 
 ## 📝 License
 

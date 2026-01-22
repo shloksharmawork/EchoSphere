@@ -3,6 +3,9 @@ import useSWR from 'swr';
 interface User {
     id: string;
     username: string;
+    avatarUrl?: string | null;
+    reputationScore?: number;
+    isAnonymous?: boolean;
 }
 
 interface AuthResponse {
@@ -63,6 +66,22 @@ export function useAuth() {
         return result;
     };
 
+    const updateProfile = async (updateData: { username?: string, avatarUrl?: string, isAnonymous?: boolean }) => {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/profile`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(updateData)
+        });
+
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Update failed');
+        }
+
+        mutate(); // Re-fetch user data
+    };
+
     const logout = async () => {
         await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
             method: 'POST',
@@ -77,6 +96,7 @@ export function useAuth() {
         isError: error,
         login,
         signup,
+        updateProfile,
         logout
     };
 }

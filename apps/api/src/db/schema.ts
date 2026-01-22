@@ -33,37 +33,57 @@ export const sessions = pgTable("sessions", {
 
 export const voicePins = pgTable("voice_pins", {
     id: serial("id").primaryKey(),
-    creatorId: text("creator_id").references(() => users.id), // Changed to text
+    creatorId: text("creator_id").references(() => users.id),
     title: text("title"),
     audioUrl: text("audio_url").notNull(),
 
     // Privacy & Location
-    geom: geometry("geom").notNull(), // Exact location (internal use)
-
-    // We can calculate fuzzy location on the fly or store it. 
-    // Keeping it for now if we want to index on it for broad privacy-safe searches.
+    geom: geometry("geom").notNull(),
     fuzzyGeom: geometry("fuzzy_geom"),
 
     locationName: text("location_name"),
 
     isAnonymousPost: boolean("is_anonymous_post").default(false),
     voiceMaskingEnabled: boolean("voice_masking_enabled").default(false),
+    isHidden: boolean("is_hidden").default(false),
 
     expiresAt: timestamp("expires_at"),
     createdAt: timestamp("created_at").defaultNow(),
 }, (table) => {
     return {
         spatialIndex: index("spatial_index").on(table.geom).using(sql`gist`),
-        // fuzzySpatialIndex: index("fuzzy_spatial_index").on(table.fuzzyGeom).using(sql`gist`),
     };
+});
+
+// User Blocking System
+export const blocks = pgTable("blocks", {
+    id: serial("id").primaryKey(),
+    blockerId: text("blocker_id").references(() => users.id).notNull(),
+    blockedId: text("blocked_id").references(() => users.id).notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
+}, (table) => {
+    return {
+        uniqueBlock: index("unique_block_idx").on(table.blockerId, table.blockedId),
+    };
+});
+
+// Content Reporting System
+export const reports = pgTable("reports", {
+    id: serial("id").primaryKey(),
+    reporterId: text("reporter_id").references(() => users.id).notNull(),
+    targetType: text("target_type", { enum: ["PIN", "USER"] }).notNull(),
+    targetId: text("target_id").notNull(),
+    reason: text("reason").notNull(),
+    createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Gated Connection System
 export const connectionRequests = pgTable("connection_requests", {
     id: serial("id").primaryKey(),
-    senderId: text("sender_id").references(() => users.id).notNull(), // Changed to text
-    receiverId: text("receiver_id").references(() => users.id).notNull(), // Changed to text
+    senderId: text("sender_id").references(() => users.id).notNull(),
+    receiverId: text("receiver_id").references(() => users.id).notNull(),
     status: text("status", { enum: ["PENDING", "ACCEPTED", "IGNORED", "BLOCKED"] }).default("PENDING"),
     audioIntroUrl: text("audio_intro_url"),
     createdAt: timestamp("created_at").defaultNow(),
 });
+

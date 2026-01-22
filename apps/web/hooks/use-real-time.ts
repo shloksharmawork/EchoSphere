@@ -1,56 +1,73 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
-const WEBSOCKET_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') + '/ws' || 'ws://localhost:3001/ws';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
 
-interface LocationUpdate {
-    userId: string;
-    lat: number;
-    lng: number;
-}
-
-export function useRealTimeLocation() {
-    const ws = useRef<WebSocket | null>(null);
-    const [nearbyUsers, setNearbyUsers] = useState<Record<string, LocationUpdate>>({});
+export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotification?: (payload: any) => void) {
+    const [isConnected, setIsConnected] = useState(false);
+    const wsRef = useRef<WebSocket | null>(null);
 
     useEffect(() => {
-        // Initialize WebSocket
-        ws.current = new WebSocket(WEBSOCKET_URL);
+        if (!user) return;
 
-        ws.current.onopen = () => {
-            console.log('Connected to real-time server');
-        };
+        const connect = () => {
+            const ws = new WebSocket(WS_URL);
+            wsRef.current = ws;
 
-        ws.current.onmessage = (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                if (data.type === 'USER_MOVED') {
-                    setNearbyUsers(prev => ({
-                        ...prev,
-                        [data.payload.userId]: data.payload
-                    }));
+            ws.onopen = () => {
+                console.log('Connected to EchoSphere WebSocket');
+                setIsConnected(true);
+
+                // Identify user
+                ws.send(JSON.stringify({
+                    type: 'IDENTIFY',
+                    payload: { userId: user.id }
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'new_pin') {
+                        onNewPin?.(data.pin);
+                    }
+                    if (data.type === 'NOTIFICATION') {
+                        onNotification?.(data.payload);
+                    }
+                    if (data.type === 'USER_MOVED') {
+                        // Handle other users moving if we want to show them
+                    }
+                } catch (e) {
+                    console.error('WS Message Error:', e);
                 }
-            } catch (e) {
-                console.error('Failed to parse WS message', e);
-            }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket Disconnected. Reconnecting...');
+                setIsConnected(false);
+                setTimeout(connect, 3000);
+            };
+
+            ws.onerror = (err) => {
+                console.error('WebSocket Error:', err);
+                ws.close();
+            };
         };
+
+        connect();
 
         return () => {
-            ws.current?.close();
+            wsRef.current?.close();
         };
-    }, []);
+    }, [user?.id]); // Reconnect if user changes
 
-    const broadcastLocation = (lat: number, lng: number) => {
-        if (ws.current?.readyState === WebSocket.OPEN) {
-            ws.current.send(JSON.stringify({
+    const sendLocation = (lat: number, lng: number) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+            wsRef.current.send(JSON.stringify({
                 type: 'LOCATION_UPDATE',
-                payload: {
-                    userId: 'me', // TODO: Replace with actual session ID
-                    lat,
-                    lng
-                }
+                payload: { lat, lng }
             }));
         }
     };
 
-    return { nearbyUsers, broadcastLocation };
+    return { isConnected, sendLocation };
 }

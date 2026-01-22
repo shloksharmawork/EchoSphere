@@ -6,6 +6,7 @@ import { prettyJSON } from 'hono/pretty-json'
 import pinsRouter from './routes/pins'
 import connectionsRouter from './routes/connections'
 import authRouter from './routes/auth'
+import safetyRouter from './routes/safety'
 import { wss, handleUpgrade } from './websocket'
 import { lucia } from './auth'
 import type { User, Session } from 'lucia'
@@ -51,6 +52,7 @@ app.use('*', async (c, next) => {
 });
 
 app.route('/auth', authRouter)
+app.route('/safety', safetyRouter)
 app.route('/', pinsRouter)
 app.route('/connections', connectionsRouter)
 

@@ -1,11 +1,16 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Map, GeolocateControl, NavigationControl, Marker, Popup, useControl } from 'react-map-gl/mapbox';
+import { Map, GeolocateControl, NavigationControl, Marker, Popup } from 'react-map-gl/mapbox';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AudioPlayer } from './audio-player';
 import { VoiceRecorder } from './voice-recorder';
-import { Mic, ArrowRight, User } from 'lucide-react';
+import { SafetyActions, BlockUserAction } from './safety-actions';
+import { ProfileModal } from './profile-modal';
+import { ConnectionsInbox } from './connections-inbox';
+import { useAuth } from '../hooks/use-auth';
+import { useRealTime } from '../hooks/use-real-time';
+import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell } from 'lucide-react';
 import Image from 'next/image';
 
 interface MapViewProps {
@@ -22,12 +27,14 @@ interface Pin {
     audioUrl: string;
     isAnonymous: boolean;
     voiceMaskingEnabled: boolean;
+    creatorId: string;
 }
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export default function MapView({ initialViewState }: MapViewProps) {
+    const { user } = useAuth();
     const [viewState, setViewState] = useState(initialViewState || {
         longitude: -122.4,
         latitude: 37.8,
@@ -36,7 +43,31 @@ export default function MapView({ initialViewState }: MapViewProps) {
     const [pins, setPins] = useState<Pin[]>([]);
     const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
     const [showRecorder, setShowRecorder] = useState(false);
+    const [showProfile, setShowProfile] = useState(false);
+    const [showInbox, setShowInbox] = useState(false);
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+    const [notifications, setNotifications] = useState<any[]>([]);
+
+    // WebSocket Integration
+    const { isConnected, sendLocation } = useRealTime(user, (newPin) => {
+        setPins(prev => {
+            if (prev.some(p => p.id === newPin.id)) return prev;
+            return [newPin, ...prev];
+        });
+    }, (notification) => {
+        console.log("New Notification:", notification);
+        setNotifications(prev => [...prev, notification]);
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("EchoSphere", { body: `New connection request from ${notification.sender.username}` });
+        }
+    });
+
+    // Request Notification Permissions
+    useEffect(() => {
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
+    }, []);
 
     // Fetch pins when map moves
     const fetchPins = async () => {
@@ -53,7 +84,8 @@ export default function MapView({ initialViewState }: MapViewProps) {
 
     useEffect(() => {
         fetchPins();
-        const interval = setInterval(fetchPins, 10000);
+        // We still keep a slow poll as a fallback, but real-time covers instant updates
+        const interval = setInterval(fetchPins, 30000);
         return () => clearInterval(interval);
     }, [viewState.latitude, viewState.longitude]);
 
@@ -63,17 +95,23 @@ export default function MapView({ initialViewState }: MapViewProps) {
         if ("geolocation" in navigator) {
             const watchId = navigator.geolocation.watchPosition(
                 (pos) => {
-                    setUserLocation({
+                    const newLocation = {
                         lat: pos.coords.latitude,
                         lng: pos.coords.longitude
-                    });
+                    };
+                    setUserLocation(newLocation);
+
+                    // Broadcast location via WebSocket
+                    if (isConnected) {
+                        sendLocation(newLocation.lat, newLocation.lng);
+                    }
                 },
                 (err) => console.error(err),
                 { enableHighAccuracy: true }
             );
             return () => navigator.geolocation.clearWatch(watchId);
         }
-    }, []);
+    }, [isConnected]);
 
     if (!TOKEN) {
         return <div className="text-white p-10">Mapbox Token Missing</div>;
@@ -100,19 +138,22 @@ export default function MapView({ initialViewState }: MapViewProps) {
                         latitude={userLocation.lat}
                         anchor="center"
                     >
-                        <div className="relative group cursor-pointer">
+                        <div className="relative group cursor-pointer" onClick={() => setShowProfile(true)}>
                             <div className="absolute -inset-4 bg-emerald-500/30 rounded-full blur-xl animate-pulse" />
-                            <div className="relative w-12 h-12 rounded-full border-2 border-emerald-400 overflow-hidden shadow-[0_0_15px_rgba(52,211,153,0.6)]">
-                                <Image
-                                    src="/avatar.jpg"
-                                    alt="User"
-                                    width={48}
-                                    height={48}
-                                    className="object-cover w-full h-full"
-                                />
-                            </div>
-                            <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-zinc-900/80 text-white text-[10px] px-2 py-0.5 rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-zinc-700">
-                                You
+                            <div className="relative w-12 h-12 rounded-full border-2 border-emerald-400 overflow-hidden shadow-[0_0_15px_rgba(52,211,153,0.6)] bg-zinc-800">
+                                {user?.avatarUrl ? (
+                                    <Image
+                                        src={user.avatarUrl}
+                                        alt="User"
+                                        width={48}
+                                        height={48}
+                                        className="object-cover w-full h-full"
+                                    />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-emerald-400">
+                                        <UserIcon size={24} />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </Marker>
@@ -163,16 +204,54 @@ export default function MapView({ initialViewState }: MapViewProps) {
                                 <button onClick={() => setSelectedPin(null)} className="text-zinc-500 hover:text-white transition-colors">&times;</button>
                             </div>
                             <AudioPlayer src={selectedPin.audioUrl} autoplay />
+
+                            <div className="flex gap-2">
+                                <SafetyActions
+                                    targetType="PIN"
+                                    targetId={selectedPin.id.toString()}
+                                    onActionComplete={() => {
+                                        setSelectedPin(null);
+                                        fetchPins();
+                                    }}
+                                />
+                                <BlockUserAction
+                                    userId={selectedPin.creatorId}
+                                    onBlock={() => {
+                                        setSelectedPin(null);
+                                        fetchPins();
+                                    }}
+                                />
+                            </div>
                         </div>
                     </Popup>
                 )}
             </Map>
 
             {/* Header Overlay */}
-            <div className="absolute top-6 left-6 z-10 pointer-events-none select-none">
-                <h1 className="text-3xl font-black text-white tracking-tighter drop-shadow-2xl flex items-center gap-2">
+            <div className="absolute top-6 left-6 right-6 z-10 flex justify-between items-start pointer-events-none">
+                <h1 className="text-3xl font-black text-white tracking-tighter drop-shadow-2xl flex items-center gap-2 select-none">
                     EchoSphere <span className="text-emerald-400 text-sm font-bold uppercase track-widest px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 backdrop-blur-md">Live</span>
                 </h1>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => {
+                            setShowInbox(true);
+                            setNotifications([]);
+                        }}
+                        className="pointer-events-auto p-3 rounded-full bg-zinc-900/80 border border-zinc-800 text-white backdrop-blur-md hover:bg-zinc-800 transition-colors shadow-xl relative"
+                    >
+                        <Bell size={24} />
+                        {notifications.length > 0 && (
+                            <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-zinc-900" />
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setShowProfile(true)}
+                        className="pointer-events-auto p-3 rounded-full bg-zinc-900/80 border border-zinc-800 text-white backdrop-blur-md hover:bg-zinc-800 transition-colors shadow-xl"
+                    >
+                        <UserIcon size={24} />
+                    </button>
+                </div>
             </div>
 
             {/* FAB: Drop Voice */}
@@ -199,6 +278,15 @@ export default function MapView({ initialViewState }: MapViewProps) {
                         fetchPins();
                     }}
                 />
+            )}
+
+            {/* Profile Modal Overlay */}
+            {showProfile && (
+                <ProfileModal onClose={() => setShowProfile(false)} />
+            )}
+
+            {showInbox && (
+                <ConnectionsInbox onClose={() => setShowInbox(false)} />
             )}
         </div>
     );

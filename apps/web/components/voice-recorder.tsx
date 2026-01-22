@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Mic, Square, Play, Send, Loader2, RefreshCw } from 'lucide-react';
 import { getUploadUrl, uploadFile, createPin } from '../lib/api';
+import { applyVoiceMasking } from '../lib/voice-processing';
 
 interface VoiceRecorderProps {
     latitude: number;
@@ -20,6 +21,8 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
     const [voiceMaskingEnabled, setVoiceMaskingEnabled] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+    const [isProcessing, setIsProcessing] = useState(false);
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -30,6 +33,30 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, []);
+
+    // Effect to handle voice masking preview when the toggle is flipped
+    useEffect(() => {
+        if (!audioBlob) return;
+
+        const updatePreview = async () => {
+            if (voiceMaskingEnabled) {
+                setIsProcessing(true);
+                try {
+                    const masked = await applyVoiceMasking(audioBlob);
+                    const url = URL.createObjectURL(masked);
+                    setPreviewUrl(url);
+                } catch (e) {
+                    console.error("Masking failed", e);
+                } finally {
+                    setIsProcessing(false);
+                }
+            } else {
+                setPreviewUrl(URL.createObjectURL(audioBlob));
+            }
+        };
+
+        updatePreview();
+    }, [voiceMaskingEnabled, audioBlob]);
 
     const startRecording = async () => {
         try {
@@ -82,14 +109,23 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
         setIsUploading(true);
 
         try {
+            let blobToUpload = audioBlob;
+
+            // Apply masking if enabled before upload
+            if (voiceMaskingEnabled) {
+                setIsProcessing(true);
+                blobToUpload = await applyVoiceMasking(audioBlob);
+                setIsProcessing(false);
+            }
+
             // 1. Get Upload URL
             const { uploadUrl, url } = await getUploadUrl(
-                audioBlob.type,
-                audioBlob.size
+                blobToUpload.type,
+                blobToUpload.size
             );
 
             // 2. Upload to Storage
-            await uploadFile(uploadUrl, audioBlob);
+            await uploadFile(uploadUrl, blobToUpload);
 
             // 3. Create Pin
             await createPin({
@@ -108,6 +144,7 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
             alert("Failed to drop voice. Please try again.");
         } finally {
             setIsUploading(false);
+            setIsProcessing(false);
         }
     };
 
@@ -141,8 +178,8 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                     <button
                         onClick={isRecording ? stopRecording : startRecording}
                         className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isRecording
-                                ? 'bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
-                                : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
+                            ? 'bg-red-500 hover:bg-red-600 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+                            : 'bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.5)]'
                             }`}
                     >
                         {isRecording ? <Square fill="white" className="text-white" /> : <Mic className="text-white w-8 h-8" />}
@@ -163,9 +200,10 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                                 const audio = new Audio(previewUrl!);
                                 audio.play();
                             }}
-                            className="p-4 rounded-full bg-indigo-600 text-white hover:bg-indigo-500"
+                            disabled={isProcessing}
+                            className="p-4 rounded-full bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50"
                         >
-                            <Play fill="white" size={20} />
+                            {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Play fill="white" size={20} />}
                         </button>
                     </div>
                 )}
@@ -198,12 +236,12 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                 {audioBlob && (
                     <button
                         onClick={handleDrop}
-                        disabled={isUploading}
-                        className="w-full py-4 bg-emerald-500 hovered:bg-emerald-600 text-black font-bold rounded-xl flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+                        disabled={isUploading || isProcessing}
+                        className="w-full py-4 bg-emerald-500 hovered:bg-emerald-600 text-black font-bold rounded-xl flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
                     >
-                        {isUploading ? (
+                        {isUploading || isProcessing ? (
                             <>
-                                <Loader2 className="animate-spin" /> Uploading...
+                                <Loader2 className="animate-spin" /> {isProcessing ? 'Processing...' : 'Uploading...'}
                             </>
                         ) : (
                             <>

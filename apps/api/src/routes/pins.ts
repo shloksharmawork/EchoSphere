@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { zValidator } from '@hono/zod-validator'
 import { db } from "../db";
-import { voicePins } from "../db/schema";
+import { voicePins, blocks, reports } from "../db/schema";
 import { generateUploadUrl } from "../services/storage";
 import { wss } from "../websocket";
-import { sql } from "drizzle-orm";
+import { sql, and, eq, notInArray, exists } from "drizzle-orm";
 import type { User, Session } from 'lucia';
 
 type Variables = {
@@ -95,22 +95,42 @@ app.get("/pins", zValidator('query', getPinsSchema), async (c) => {
     // For DISCOVERY, we return the fuzzy location to the frontend.
     // Note: We cast geometry to GeoJSON for easy consumption
 
+    // Discovery: Filter out hidden pins and blocked users
+    const user = c.get('user');
+
     const nearbyPins = await db.execute(sql`
     SELECT 
-      id, 
-      audio_url as "audioUrl",
-      title,
-      is_anonymous_post as "isAnonymous",
-      voice_masking_enabled as "voiceMaskingEnabled",
-      created_at as "createdAt",
-      ST_AsGeoJSON(fuzzy_geom)::json as location
-    FROM ${voicePins}
-    WHERE ST_DWithin(
-      fuzzy_geom,
+      p.id, 
+      p.audio_url as "audioUrl",
+      p.title,
+      p.is_anonymous_post as "isAnonymous",
+      p.voice_masking_enabled as "voiceMaskingEnabled",
+      p.created_at as "createdAt",
+      p.creator_id as "creatorId",
+      ST_AsGeoJSON(p.fuzzy_geom)::json as location
+    FROM ${voicePins} p
+    WHERE p.is_hidden = false
+    AND ST_DWithin(
+      p.fuzzy_geom,
       ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
       ${radius}
     )
-    ORDER BY created_at DESC
+    -- Hide pins with 20 or more reports (Auto-flagging)
+    AND (
+      SELECT COUNT(*) FROM ${reports} r 
+      WHERE r.target_type = 'PIN' AND r.target_id = p.id::text
+    ) < 20
+    ${user
+            ? sql`
+      AND NOT EXISTS (
+        SELECT 1 FROM ${blocks} b 
+        WHERE (b.blocker_id = ${user.id} AND b.blocked_id = p.creator_id)
+        OR (b.blocker_id = p.creator_id AND b.blocked_id = ${user.id})
+      )
+    `
+            : sql``
+        }
+    ORDER BY p.created_at DESC
     LIMIT 50
   `);
 

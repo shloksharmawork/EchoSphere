@@ -114,4 +114,47 @@ authRouter.get("/me", async (c) => {
     return c.json({ user });
 });
 
+import { z } from "zod";
+import { zValidator } from "@hono/zod-validator";
+
+const profileSchema = z.object({
+    username: z.string().min(3).optional(),
+    avatarUrl: z.string().url().optional(),
+    isAnonymous: z.boolean().optional(),
+});
+
+authRouter.patch("/profile", zValidator("json", profileSchema), async (c) => {
+    const sessionId = lucia.readSessionCookie(c.req.header("Cookie") ?? "");
+    if (!sessionId) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { session, user } = await lucia.validateSession(sessionId);
+    if (!session) {
+        return c.json({ error: "Unauthorized" }, 401);
+    }
+
+    const { username, avatarUrl, isAnonymous } = c.req.valid("json");
+
+    try {
+        const updateData: any = {};
+        if (username) updateData.username = username;
+        if (avatarUrl) updateData.avatarUrl = avatarUrl;
+        if (typeof isAnonymous !== 'undefined') updateData.isAnonymous = isAnonymous;
+
+        if (Object.keys(updateData).length === 0) {
+            return c.json({ error: "No data to update" }, 400);
+        }
+
+        await db.update(users)
+            .set(updateData)
+            .where(eq(users.id, user.id));
+
+        return c.json({ success: true, message: "Profile updated" });
+    } catch (e) {
+        console.error(e);
+        return c.json({ error: "Failed to update profile" }, 500);
+    }
+});
+
 export default authRouter;
