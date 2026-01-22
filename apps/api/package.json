@@ -1,0 +1,35 @@
+{
+  "name": "echosphere-api",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "test": "echo 'Test not implemented for Node yet'",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.972.0",
+    "@aws-sdk/s3-request-presigner": "^3.972.0",
+    "@lucia-auth/adapter-drizzle": "^1.1.0",
+    "drizzle-orm": "^0.29.3",
+    "hono": "^4.0.0",
+    "livekit-server-sdk": "^2.15.0",
+    "lucia": "^3.2.2",
+    "oslo": "^1.2.1",
+    "postgres": "^3.4.3",
+    "swr": "^2.3.8",
+    "ws": "^8.16.0",
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@hono/node-server": "^1.19.9",
+    "@types/ws": "^8.18.1",
+    "bun-types": "latest",
+    "drizzle-kit": "^0.20.13",
+    "tsx": "^4.21.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,72 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Production
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Environment variables - IMPORTANT: Never commit these!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+.turbo
+.vercel
+
+# Docker volumes (if any)
+postgres-data/
+redis-data/
+minio-data/
+
+# Migration files (keep schema, exclude generated)
+apps/api/drizzle/*
+!apps/api/drizzle/.gitkeep
+
+# Custom migration SQL (keep these for reference)
+!migration.sql
+!migration_auth.sql
+
+# MinIO/S3 local storage
+uploads/
+storage/
+
+# Secrets and keys
+*.pem
+*.key
+*.cert
+secrets/
