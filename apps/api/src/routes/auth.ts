@@ -111,8 +111,12 @@ authRouter.post("/signup", async (c) => {
 
         const session = await lucia.createSession(userId, {});
         const sessionCookie = lucia.createSessionCookie(session.id);
+        const serializedCookie = sessionCookie.serialize();
 
-        c.header("Set-Cookie", sessionCookie.serialize(), { append: true });
+        console.log(`[AUTH] Signup successful. Generated session: ${session.id}`);
+        console.log(`[AUTH] Setting Cookie: ${serializedCookie}`);
+
+        c.header("Set-Cookie", serializedCookie, { append: true });
 
         return c.json({ success: true, user: { id: userId, username } });
     } catch (e: any) {
@@ -157,8 +161,12 @@ authRouter.post("/login", async (c) => {
 
     const session = await lucia.createSession(user.id, {});
     const sessionCookie = lucia.createSessionCookie(session.id);
+    const serializedCookie = sessionCookie.serialize();
 
-    c.header("Set-Cookie", sessionCookie.serialize(), { append: true });
+    console.log(`[AUTH] Login successful for user: ${user.username}`);
+    console.log(`[AUTH] Setting Cookie: ${serializedCookie}`);
+
+    c.header("Set-Cookie", serializedCookie, { append: true });
 
     return c.json({ success: true, user: { id: user.id, username: user.username } });
 });

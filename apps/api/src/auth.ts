@@ -10,7 +10,8 @@ const adapter = new DrizzlePostgreSQLAdapter(db, sessions as any, users as any);
 export const lucia = new Lucia(adapter, {
     sessionCookie: {
         attributes: {
-            secure: process.env.NODE_ENV === "production"
+            secure: true, // Always true since Render/Vercel use HTTPS
+            sameSite: "none" // Required for cross-domain login
         }
     },
     getUserAttributes: (attributes) => {
