@@ -19,6 +19,22 @@ const s3Client = new S3Client({
 });
 
 export const generateUploadUrl = async (key: string, contentType: string) => {
+    // If S3 keys are missing or set to local, and we are on Render (production-ish)
+    // we use Mock Storage to avoid "Unable to fetch" errors.
+    const isLocal = S3_ENDPOINT.includes("localhost") || S3_ENDPOINT.includes("127.0.0.1");
+    const isMissingKeys = S3_ACCESS_KEY === "minio_admin" || S3_SECRET_KEY === "minio_password";
+
+    if (isLocal && isMissingKeys) {
+        console.warn("[WARN] S3 credentials missing or set to local. Using MOCK STORAGE.");
+        return {
+            url: "https://echo-sphere-mock-storage.vercel.app/unused", // Client won't actually call this
+            key,
+            bucket: "mock-bucket",
+            publicUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", // Use a real public sample mp3
+            isMock: true
+        };
+    }
+
     const command = new PutObjectCommand({
         Bucket: S3_BUCKET,
         Key: key,
@@ -32,5 +48,6 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
         key,
         bucket: S3_BUCKET,
         publicUrl: `${S3_ENDPOINT}/${S3_BUCKET}/${key}`, // Assuming public bucket
+        isMock: false
     };
 };

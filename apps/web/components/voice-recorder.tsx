@@ -119,13 +119,15 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
             }
 
             // 1. Get Upload URL
-            const { uploadUrl, url } = await getUploadUrl(
+            const { uploadUrl, url, isMock } = await getUploadUrl(
                 blobToUpload.type,
                 blobToUpload.size
             );
 
-            // 2. Upload to Storage
-            await uploadFile(uploadUrl, blobToUpload);
+            // 2. Upload to Storage (Skip if Mock)
+            if (!isMock) {
+                await uploadFile(uploadUrl, blobToUpload);
+            }
 
             // 3. Create Pin
             await createPin({

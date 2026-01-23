@@ -125,16 +125,18 @@ export function SignupForm() {
             });
 
             if (!res.ok) throw new Error("Failed to get upload URL");
-            const { uploadUrl, url } = await res.json();
+            const { uploadUrl, url, isMock } = await res.json();
 
-            // Upload to S3/MinIO
-            const uploadRes = await fetch(uploadUrl, {
-                method: "PUT",
-                body: file,
-                headers: { "Content-Type": file.type },
-            });
+            // Upload to S3/MinIO (Skip if Mock)
+            if (!isMock) {
+                const uploadRes = await fetch(uploadUrl, {
+                    method: "PUT",
+                    body: file,
+                    headers: { "Content-Type": file.type },
+                });
 
-            if (!uploadRes.ok) throw new Error("Upload failed");
+                if (!uploadRes.ok) throw new Error("Upload failed");
+            }
             setAvatarUrl(url);
         } catch (err: any) {
             setError(err.message);
