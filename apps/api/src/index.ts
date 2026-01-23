@@ -23,7 +23,7 @@ const app = new Hono<{ Variables: Variables }>()
 
 
 app.use('/*', cors({
-    origin: ['http://localhost:3000'],
+    origin: [process.env.FRONTEND_URL || 'http://localhost:3000'],
     credentials: true
 }))
 app.use('*', logger())
