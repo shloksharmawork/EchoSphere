@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external && cp -r drizzle dist/drizzle",
+    "build": "esbuild src/index.ts --bundle --platform=node --format=esm --outfile=dist/index.js --packages=external && node copy-migrations.js",
     "start": "node dist/index.js",
     "test": "echo 'Test not implemented for Node yet'",
     "db:generate": "drizzle-kit generate:pg",
