@@ -23,7 +23,8 @@ app.post("/upload-url", zValidator('json', startUploadSchema), async (c) => {
     return c.json({
         uploadUrl: data.url,
         url: data.publicUrl,
-        key: data.key
+        key: data.key,
+        isMock: (data as any).isMock
     });
 });
 
