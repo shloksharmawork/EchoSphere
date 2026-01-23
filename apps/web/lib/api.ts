@@ -4,6 +4,7 @@ export async function getUploadUrl(contentType: string, fileSize: number) {
     const res = await fetch(`${API_URL}/upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ contentType, fileSize })
     });
     if (!res.ok) throw new Error('Failed to get upload URL');
@@ -33,6 +34,7 @@ export async function createPin(data: {
     const res = await fetch(`${API_URL}/pins`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(data)
     });
     if (!res.ok) throw new Error('Failed to create pin');
