@@ -23,7 +23,14 @@ const app = new Hono<{ Variables: Variables }>()
 
 
 app.use('/*', cors({
-    origin: [process.env.FRONTEND_URL || 'http://localhost:3000'],
+    origin: (origin) => {
+        const allowed = process.env.FRONTEND_URL || 'http://localhost:3000';
+        // Allow if exact match or match without trailing slash
+        if (origin === allowed || origin === allowed.replace(/\/$/, '')) {
+            return origin;
+        }
+        return null;
+    },
     credentials: true
 }))
 app.use('*', logger())
@@ -67,7 +74,7 @@ app.get('/health', (c) => {
 // Start background services
 startCleanupService();
 
-const port = 3001
+const port = Number(process.env.PORT) || 3001
 console.log(`Server is running on port ${port}`)
 
 const server = serve({
