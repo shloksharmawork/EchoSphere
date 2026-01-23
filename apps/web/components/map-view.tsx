@@ -128,7 +128,12 @@ export default function MapView({ initialViewState }: MapViewProps) {
                 attributionControl={false}
             >
                 {/* Standard Controls */}
-                <GeolocateControl position="bottom-right" />
+                <GeolocateControl
+                    position="bottom-right"
+                    trackUserLocation={true}
+                    showUserLocation={true}
+                    positionOptions={{ enableHighAccuracy: true }}
+                />
                 <NavigationControl position="bottom-right" />
 
                 {/* Custom User Marker */}
@@ -248,6 +253,7 @@ export default function MapView({ initialViewState }: MapViewProps) {
                     <button
                         onClick={() => setShowProfile(true)}
                         className="pointer-events-auto p-3 rounded-full bg-zinc-900/80 border border-zinc-800 text-white backdrop-blur-md hover:bg-zinc-800 transition-colors shadow-xl"
+                        title="Account"
                     >
                         <UserIcon size={24} />
                     </button>

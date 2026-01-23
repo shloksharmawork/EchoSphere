@@ -2,18 +2,79 @@ import { Hono } from "hono";
 import { generateId } from "lucia";
 import { Argon2id } from "oslo/password";
 import { db } from "../db";
-import { users } from "../db/schema";
+import { users, phoneVerifications } from "../db/schema";
 import { lucia } from "../auth";
 import { getCookie } from "hono/cookie";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+
+import twilio from "twilio";
 
 const authRouter = new Hono();
 
-authRouter.post("/signup", async (c) => {
-    const { username, password } = await c.req.json();
+// Send OTP
+authRouter.post("/otp/send", async (c) => {
+    const { phone } = await c.req.json();
+    if (!phone) return c.json({ error: "Phone number required" }, 400);
 
-    if (!username || !password) {
-        return c.json({ error: "Invalid input" }, 400);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+    await db.insert(phoneVerifications).values({
+        phone,
+        code,
+        expiresAt
+    });
+
+    // Twilio Integration
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+
+    if (accountSid && authToken && fromPhone) {
+        try {
+            const client = twilio(accountSid, authToken);
+            await client.messages.create({
+                body: `Your EchoSphere verification code is: ${code}`,
+                from: fromPhone,
+                to: phone
+            });
+            console.log(`[TWILIO] SMS sent to ${phone}`);
+        } catch (error: any) {
+            console.error("[TWILIO ERROR]", error);
+            // Return specific error for easier debugging
+            return c.json({ error: `SMS Failed: ${error.message || "Unknown Twilio Error"}` }, 500);
+        }
+    } else {
+        console.log(`[MOCK SMS] OTP for ${phone}: ${code}`);
+        console.warn("[WARN] Twilio credentials missing, using mock SMS.");
+    }
+
+    return c.json({ success: true, message: "OTP sent" });
+});
+
+// Verify OTP
+authRouter.post("/otp/verify", async (c) => {
+    const { phone, code } = await c.req.json();
+    if (!phone || !code) return c.json({ error: "Phone and code required" }, 400);
+
+    const verification = await db.select()
+        .from(phoneVerifications)
+        .where(eq(phoneVerifications.phone, phone))
+        .orderBy(sql`${phoneVerifications.createdAt} DESC`)
+        .limit(1);
+
+    if (verification.length === 0 || verification[0].code !== code || verification[0].expiresAt < new Date()) {
+        return c.json({ error: "Invalid or expired code" }, 400);
+    }
+
+    return c.json({ success: true });
+});
+
+authRouter.post("/signup", async (c) => {
+    const { username, password, email, phone, countryCode, avatarUrl } = await c.req.json();
+
+    if (!username || !password || !phone) {
+        return c.json({ error: "Missing required fields" }, 400);
     }
 
     const hashedPassword = await new Argon2id().hash(password);
@@ -23,7 +84,12 @@ authRouter.post("/signup", async (c) => {
         await db.insert(users).values({
             id: userId,
             username,
-            hashedPassword
+            email,
+            phone,
+            countryCode, // Store country code
+            avatarUrl,
+            hashedPassword,
+            isPhoneVerified: true // Assuming they verified OTP before calling signup
         });
 
         const session = await lucia.createSession(userId, {});

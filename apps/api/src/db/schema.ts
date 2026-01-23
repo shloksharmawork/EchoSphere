@@ -5,7 +5,7 @@ import { customType } from "drizzle-orm/pg-core";
 // Custom Geometry Type for PostGIS
 const geometry = customType<{ data: string }>({
     dataType() {
-        return "geometry(Point, 4326)";
+        return "public.geometry(Point, 4326)";
     },
 });
 
@@ -13,10 +13,21 @@ export const users = pgTable("users", {
     id: text("id").primaryKey(), // Lucia uses text IDs
     username: text("username").unique(),
     email: text("email").unique(),
+    phone: text("phone").unique(), // Added for OTP flow
+    countryCode: text("country_code"), // Added for country selection
     hashedPassword: text("hashed_password"), // Added for auth
+    isPhoneVerified: boolean("is_phone_verified").default(false), // Track verification status
     isAnonymous: boolean("is_anonymous").default(false),
     reputationScore: integer("reputation_score").default(100),
     avatarUrl: text("avatar_url"),
+    createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const phoneVerifications = pgTable("phone_verifications", {
+    id: serial("id").primaryKey(),
+    phone: text("phone").notNull(),
+    code: text("code").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
     createdAt: timestamp("created_at").defaultNow(),
 });
 

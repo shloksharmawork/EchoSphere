@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:3001/ws';
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:3001/ws';
 
 export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotification?: (payload: any) => void) {
     const [isConnected, setIsConnected] = useState(false);
@@ -9,15 +9,24 @@ export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotific
     useEffect(() => {
         if (!user) return;
 
+        let isMounted = true;
+        let reconnectTimeout: NodeJS.Timeout;
+
         const connect = () => {
+            if (!isMounted) return;
+
+            console.log('Attempting WebSocket connection to:', WS_URL);
             const ws = new WebSocket(WS_URL);
             wsRef.current = ws;
 
             ws.onopen = () => {
+                if (!isMounted) {
+                    ws.close();
+                    return;
+                }
                 console.log('Connected to EchoSphere WebSocket');
                 setIsConnected(true);
 
-                // Identify user
                 ws.send(JSON.stringify({
                     type: 'IDENTIFY',
                     payload: { userId: user.id }
@@ -25,6 +34,7 @@ export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotific
             };
 
             ws.onmessage = (event) => {
+                if (!isMounted) return;
                 try {
                     const data = JSON.parse(event.data);
                     if (data.type === 'new_pin') {
@@ -33,22 +43,23 @@ export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotific
                     if (data.type === 'NOTIFICATION') {
                         onNotification?.(data.payload);
                     }
-                    if (data.type === 'USER_MOVED') {
-                        // Handle other users moving if we want to show them
-                    }
                 } catch (e) {
                     console.error('WS Message Error:', e);
                 }
             };
 
             ws.onclose = () => {
-                console.log('WebSocket Disconnected. Reconnecting...');
+                if (!isMounted) return;
+                console.log('WebSocket Disconnected. Reconnecting in 3s...');
                 setIsConnected(false);
-                setTimeout(connect, 3000);
+                reconnectTimeout = setTimeout(connect, 3000);
             };
 
             ws.onerror = (err) => {
-                console.error('WebSocket Error:', err);
+                // Only log error if we are still intending to be connected
+                if (isMounted) {
+                    console.error('WebSocket Connection Error');
+                }
                 ws.close();
             };
         };
@@ -56,9 +67,13 @@ export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotific
         connect();
 
         return () => {
-            wsRef.current?.close();
+            isMounted = false;
+            clearTimeout(reconnectTimeout);
+            if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+                wsRef.current.close();
+            }
         };
-    }, [user?.id]); // Reconnect if user changes
+    }, [user?.id]);
 
     const sendLocation = (lat: number, lng: number) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {

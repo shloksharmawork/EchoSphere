@@ -48,12 +48,12 @@ export function useAuth() {
         return result;
     };
 
-    const signup = async (username: string, password: string) => {
+    const signup = async (username: string, email: string, phone: string, countryCode: string, password: string, avatarUrl?: string) => {
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/signup`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ username, password })
+            body: JSON.stringify({ username, email, phone, countryCode, password, avatarUrl })
         });
 
         if (!res.ok) {
@@ -64,6 +64,32 @@ export function useAuth() {
         const result = await res.json();
         mutate({ user: result.user });
         return result;
+    };
+
+    const sendOtp = async (phone: string) => {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/otp/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ phone })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Failed to send OTP');
+        }
+    };
+
+    const verifyOtp = async (phone: string, code: string) => {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/otp/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ phone, code })
+        });
+        if (!res.ok) {
+            const error = await res.json();
+            throw new Error(error.error || 'Invalid OTP');
+        }
     };
 
     const updateProfile = async (updateData: { username?: string, avatarUrl?: string, isAnonymous?: boolean }) => {
@@ -97,6 +123,8 @@ export function useAuth() {
         login,
         signup,
         updateProfile,
-        logout
+        logout,
+        sendOtp,
+        verifyOtp
     };
 }

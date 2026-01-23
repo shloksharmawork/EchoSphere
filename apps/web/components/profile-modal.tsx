@@ -13,19 +13,57 @@ export function ProfileModal({ onClose }: ProfileModalProps) {
     const { user, updateProfile, logout } = useAuth();
     const [username, setUsername] = useState(user?.username || '');
     const [isAnonymous, setIsAnonymous] = useState(user?.isAnonymous || false);
+    const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleSave = async () => {
         setIsSaving(true);
         setError(null);
         try {
-            await updateProfile({ username, isAnonymous });
+            await updateProfile({ username, isAnonymous, avatarUrl });
             onClose();
         } catch (e: any) {
             setError(e.message);
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        setError(null);
+        try {
+            // Get presigned URL
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/upload-url`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contentType: file.type,
+                    fileSize: file.size,
+                }),
+            });
+
+            if (!res.ok) throw new Error("Failed to get upload URL");
+            const { uploadUrl, url } = await res.json();
+
+            // Upload to S3/MinIO
+            const uploadRes = await fetch(uploadUrl, {
+                method: "PUT",
+                body: file,
+                headers: { "Content-Type": file.type },
+            });
+
+            if (!uploadRes.ok) throw new Error("Upload failed");
+            setAvatarUrl(url);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsUploading(false);
         }
     };
 
@@ -48,18 +86,24 @@ export function ProfileModal({ onClose }: ProfileModalProps) {
                 {/* Profile Info */}
                 <div className="px-6 pb-8 -mt-12 flex flex-col items-center">
                     <div className="relative group">
-                        <div className="w-24 h-24 rounded-full border-4 border-zinc-900 bg-zinc-800 overflow-hidden shadow-xl">
+                        <div className="w-24 h-24 rounded-full border-4 border-zinc-900 bg-zinc-800 overflow-hidden shadow-xl flex items-center justify-center">
                             <Image
-                                src={user.avatarUrl || '/avatar.jpg'}
+                                src={avatarUrl || '/avatar.jpg'}
                                 alt="Profile"
                                 width={96}
                                 height={96}
                                 className="object-cover w-full h-full"
                             />
+                            {isUploading && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                    <Loader2 className="animate-spin text-white" size={24} />
+                                </div>
+                            )}
                         </div>
-                        <button className="absolute bottom-0 right-0 p-2 rounded-full bg-emerald-500 text-zinc-950 border-2 border-zinc-900 hover:scale-110 transition-transform">
+                        <label className="absolute bottom-0 right-0 p-2 rounded-full bg-emerald-500 text-zinc-950 border-2 border-zinc-900 hover:scale-110 transition-transform cursor-pointer">
                             <Camera size={14} />
-                        </button>
+                            <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} disabled={isUploading} />
+                        </label>
                     </div>
 
                     <h2 className="mt-4 text-xl font-black text-white tracking-tight">{user.username}</h2>
@@ -114,7 +158,7 @@ export function ProfileModal({ onClose }: ProfileModalProps) {
                         <div className="flex gap-3 pt-2">
                             <button
                                 onClick={handleSave}
-                                disabled={isSaving || (username === user.username && isAnonymous === user.isAnonymous)}
+                                disabled={isSaving || isUploading || (username === user.username && isAnonymous === user.isAnonymous && avatarUrl === user.avatarUrl)}
                                 className="flex-1 bg-white text-black font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-zinc-200 transition-colors disabled:opacity-50"
                             >
                                 {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
