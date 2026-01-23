@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { serve } from '@hono/node-server'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
@@ -7,8 +8,10 @@ import pinsRouter from './routes/pins'
 import connectionsRouter from './routes/connections'
 import authRouter from './routes/auth'
 import safetyRouter from './routes/safety'
+import uploadRouter from './routes/upload'
 import { wss, handleUpgrade } from './websocket'
 import { lucia } from './auth'
+import { startCleanupService } from './services/cleanup'
 import type { User, Session } from 'lucia'
 
 type Variables = {
@@ -53,12 +56,16 @@ app.use('*', async (c, next) => {
 
 app.route('/auth', authRouter)
 app.route('/safety', safetyRouter)
+app.route('/', uploadRouter)
 app.route('/', pinsRouter)
 app.route('/connections', connectionsRouter)
 
 app.get('/health', (c) => {
     return c.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
+
+// Start background services
+startCleanupService();
 
 const port = 3001
 console.log(`Server is running on port ${port}`)

@@ -3,7 +3,6 @@ import { z } from "zod";
 import { zValidator } from '@hono/zod-validator'
 import { db } from "../db";
 import { voicePins, blocks, reports } from "../db/schema";
-import { generateUploadUrl } from "../services/storage";
 import { wss } from "../websocket";
 import { sql, and, eq, notInArray, exists } from "drizzle-orm";
 import type { User, Session } from 'lucia';
@@ -14,13 +13,6 @@ type Variables = {
 }
 
 const app = new Hono<{ Variables: Variables }>();
-
-
-// Schema for requesting an upload URL
-const startUploadSchema = z.object({
-    contentType: z.string().regex(/^audio\/(webm|mp4|mpeg|wav|ogg)$/),
-    fileSize: z.number().max(10 * 1024 * 1024), // Max 10MB
-});
 
 // Schema for finalizing the Pin creation
 const createPinSchema = z.object({
@@ -37,19 +29,6 @@ const getPinsSchema = z.object({
     lat: z.coerce.number(),
     lng: z.coerce.number(),
     radius: z.coerce.number().default(5000), // meters
-});
-
-// 1. Get Presigned URL for Upload
-app.post("/upload-url", zValidator('json', startUploadSchema), async (c) => {
-    const { contentType } = c.req.valid('json');
-    const fileKey = `pins/${Date.now()}-${crypto.randomUUID()}`;
-
-    const data = await generateUploadUrl(fileKey, contentType);
-    return c.json({
-        uploadUrl: data.url,
-        url: data.publicUrl,
-        key: data.key
-    });
 });
 
 // 2. Create Voice Pin (Requires Authentication)
@@ -75,6 +54,7 @@ app.post("/pins", zValidator('json', createPinSchema), async (c) => {
         voiceMaskingEnabled: body.voiceMaskingEnabled,
         geom: sql`ST_SetSRID(ST_MakePoint(${body.longitude}, ${body.latitude}), 4326)`,
         fuzzyGeom: sql`ST_SetSRID(ST_MakePoint(${jitterLng}, ${jitterLat}), 4326)`,
+        expiresAt: new Date(Date.now() + 15 * 60 * 60 * 1000), // Expire in 15 hours
     }).returning();
 
     // Broadcast new pin to connected clients via WebSocket
