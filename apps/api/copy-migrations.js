@@ -1,10 +1,8 @@
 import { cpSync } from 'fs';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const source = join(__dirname, 'drizzle');
-const destination = join(__dirname, 'dist', 'drizzle');
+const source = join(process.cwd(), 'drizzle');
+const destination = join(process.cwd(), 'dist', 'drizzle');
 
 cpSync(source, destination, { recursive: true });
 console.log('✓ Copied drizzle migrations to dist/');
