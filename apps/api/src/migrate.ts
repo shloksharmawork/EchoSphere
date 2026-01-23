@@ -4,7 +4,7 @@ import postgres from "postgres";
 
 const connectionString = process.env.DATABASE_URL || "postgres://echo_user:echo_password@localhost:5432/echosphere";
 
-async function main() {
+export async function runMigrations() {
     console.log("Migration started...");
     const migrationClient = postgres(connectionString, { max: 1 });
     const db = drizzle(migrationClient);
@@ -15,7 +15,9 @@ async function main() {
     await migrationClient.end();
 }
 
-main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-});
+if (import.meta.url.endsWith(process.argv[1])) {
+    runMigrations().catch((err) => {
+        console.error(err);
+        process.exit(1);
+    });
+}

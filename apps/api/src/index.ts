@@ -12,6 +12,7 @@ import uploadRouter from './routes/upload'
 import { wss, handleUpgrade } from './websocket'
 import { lucia } from './auth'
 import { startCleanupService } from './services/cleanup'
+import { runMigrations } from './migrate'
 import type { User, Session } from 'lucia'
 
 type Variables = {
@@ -93,6 +94,7 @@ app.get('/health', (c) => {
 })
 
 // Start background services
+runMigrations().catch(err => console.error("Auto-migration failed:", err));
 startCleanupService();
 
 const port = Number(process.env.PORT) || 3001
