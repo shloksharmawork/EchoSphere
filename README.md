@@ -81,6 +81,34 @@ EchoSphere is a real-time location-based voice messaging platform that prioritiz
    npm run dev
    ```
 
+## 🌐 Deployment
+
+EchoSphere is designed to be easily deployed using modern cloud platforms.
+
+### Backend (Render)
+1. **Root Directory**: `apps/api`
+2. **Build Command**: `npm install && npm run build`
+3. **Start Command**: `npm start`
+4. **Environment Variables**:
+   - `DATABASE_URL`: PostgreSQL connection string (Supabase recommended).
+   - `REDIS_URL`: Redis connection string (Upstash recommended).
+   - `FRONTEND_URL`: Your Vercel deployment URL.
+   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `S3_ENDPOINT`: S3-compatible storage credentials.
+   - `S3_BUCKET_NAME`: `voice-notes`.
+   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`: Twilio API credentials.
+
+### Frontend (Vercel)
+1. **Root Directory**: `apps/web`
+2. **Framework Preset**: Next.js
+3. **Environment Variables**:
+   - `NEXT_PUBLIC_API_URL`: Your Render backend URL.
+   - `NEXT_PUBLIC_MAPBOX_TOKEN`: Your Mapbox public token.
+
+### Infrastructure Providers
+- **Database**: [Supabase](https://supabase.com) (PostgreSQL + PostGIS)
+- **Redis**: [Upstash](https://upstash.com)
+- **Storage**: [Supabase Storage](https://supabase.com/storage) or AWS S3.
+
 ## 🔐 Security & Privacy
 
 - **On-Device Masking**: Voice masking is applied *before* upload, ensuring the original voice never leaves the user's device.
