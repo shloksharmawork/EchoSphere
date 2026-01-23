@@ -115,11 +115,18 @@ authRouter.post("/signup", async (c) => {
         c.header("Set-Cookie", sessionCookie.serialize(), { append: true });
 
         return c.json({ success: true, user: { id: userId, username } });
-    } catch (e) {
-        console.error(e);
-        // Postgres error code 23505 is unique_violation
-        // Note: checking generic error here for simplicity
-        return c.json({ error: "Username already taken or unknown error" }, 400);
+    } catch (e: any) {
+        console.error("[SIGNUP ERROR]", e);
+
+        // Handle Postgres unique constraint violation
+        if (e.code === '23505') {
+            const detail = e.detail || "";
+            if (detail.includes("username")) return c.json({ error: "Username already taken" }, 400);
+            if (detail.includes("phone")) return c.json({ error: "Phone number already registered" }, 400);
+            if (detail.includes("email")) return c.json({ error: "Email already registered" }, 400);
+        }
+
+        return c.json({ error: e.message || "Failed to create account" }, 400);
     }
 });
 
