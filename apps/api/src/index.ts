@@ -24,14 +24,25 @@ const app = new Hono<{ Variables: Variables }>()
 
 app.use('/*', cors({
     origin: (origin) => {
-        const allowed = process.env.FRONTEND_URL || 'http://localhost:3000';
-        // Allow if exact match or match without trailing slash
-        if (origin === allowed || origin === allowed.replace(/\/$/, '')) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const allowedOrigins = frontendUrl.split(',').map(url => url.trim().replace(/\/$/, ''));
+
+        if (!origin) return allowedOrigins[0];
+
+        const normalizedOrigin = origin.replace(/\/$/, '');
+
+        if (allowedOrigins.includes(normalizedOrigin)) {
             return origin;
         }
+
+        console.log(`[CORS] Origin rejected: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
         return null;
     },
-    credentials: true
+    credentials: true,
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+    allowHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    exposeHeaders: ['Set-Cookie'],
+    maxAge: 600,
 }))
 app.use('*', logger())
 app.use('*', prettyJSON())
