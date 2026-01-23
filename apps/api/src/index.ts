@@ -47,6 +47,16 @@ app.use('/*', cors({
 app.use('*', logger())
 app.use('*', prettyJSON())
 
+app.onError((err, c) => {
+    console.error(`[GLOBAL ERROR] ${err.message}`);
+    console.error(err.stack);
+    return c.json({
+        error: "Internal Server Error",
+        message: err.message,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    }, 500);
+});
+
 // Auth middleware - attach user to context if session exists
 app.use('*', async (c, next) => {
     const sessionId = lucia.readSessionCookie(c.req.header("Cookie") ?? "");

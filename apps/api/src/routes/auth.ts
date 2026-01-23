@@ -13,43 +13,51 @@ const authRouter = new Hono();
 
 // Send OTP
 authRouter.post("/otp/send", async (c) => {
-    const { phone } = await c.req.json();
-    if (!phone) return c.json({ error: "Phone number required" }, 400);
+    try {
+        const { phone } = await c.req.json();
+        if (!phone) return c.json({ error: "Phone number required" }, 400);
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    await db.insert(phoneVerifications).values({
-        phone,
-        code,
-        expiresAt
-    });
+        await db.insert(phoneVerifications).values({
+            phone,
+            code,
+            expiresAt
+        }).catch(err => {
+            console.error("[DB ERROR] Failed to insert OTP:", err);
+            throw new Error(`Database error: ${err.message || "Unknown database error"}`);
+        });
 
-    // Twilio Integration
-    const accountSid = process.env.TWILIO_ACCOUNT_SID;
-    const authToken = process.env.TWILIO_AUTH_TOKEN;
-    const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+        // Twilio Integration
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromPhone = process.env.TWILIO_PHONE_NUMBER;
 
-    if (accountSid && authToken && fromPhone) {
-        try {
-            const client = twilio(accountSid, authToken);
-            await client.messages.create({
-                body: `Your EchoSphere verification code is: ${code}`,
-                from: fromPhone,
-                to: phone
-            });
-            console.log(`[TWILIO] SMS sent to ${phone}`);
-        } catch (error: any) {
-            console.error("[TWILIO ERROR]", error);
-            // Return specific error for easier debugging
-            return c.json({ error: `SMS Failed: ${error.message || "Unknown Twilio Error"}` }, 500);
+        if (accountSid && authToken && fromPhone) {
+            try {
+                const client = twilio(accountSid, authToken);
+                await client.messages.create({
+                    body: `Your EchoSphere verification code is: ${code}`,
+                    from: fromPhone,
+                    to: phone
+                });
+                console.log(`[TWILIO] SMS sent to ${phone}`);
+            } catch (error: any) {
+                console.error("[TWILIO ERROR]", error);
+                // Return specific error for easier debugging
+                return c.json({ error: `SMS Failed: ${error.message || "Unknown Twilio Error"}` }, 500);
+            }
+        } else {
+            console.log(`[MOCK SMS] OTP for ${phone}: ${code}`);
+            console.warn("[WARN] Twilio credentials missing, using mock SMS.");
         }
-    } else {
-        console.log(`[MOCK SMS] OTP for ${phone}: ${code}`);
-        console.warn("[WARN] Twilio credentials missing, using mock SMS.");
-    }
 
-    return c.json({ success: true, message: "OTP sent" });
+        return c.json({ success: true, message: "OTP sent" });
+    } catch (error: any) {
+        console.error("[OTP SEND ERROR]", error);
+        return c.json({ error: error.message || "Failed to send OTP" }, 500);
+    }
 });
 
 // Verify OTP
