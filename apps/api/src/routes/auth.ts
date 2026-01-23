@@ -7,7 +7,7 @@ import { lucia } from "../auth";
 import { getCookie } from "hono/cookie";
 import { eq, sql } from "drizzle-orm";
 
-import twilio from "twilio";
+
 
 const authRouter = new Hono();
 
@@ -29,28 +29,37 @@ authRouter.post("/otp/send", async (c) => {
             throw new Error(`Database error: ${err.message || "Unknown database error"}`);
         });
 
-        // Twilio Integration
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const fromPhone = process.env.TWILIO_PHONE_NUMBER;
+        // MSG91 Integration
+        const authKey = process.env.MSG91_AUTH_KEY;
+        const templateId = process.env.MSG91_TEMPLATE_ID;
 
-        if (accountSid && authToken && fromPhone) {
+        if (authKey && templateId) {
             try {
-                const client = twilio(accountSid, authToken);
-                await client.messages.create({
-                    body: `Your EchoSphere verification code is: ${code}`,
-                    from: fromPhone,
-                    to: phone
+                // MSG91 expects mobile number with country code without '+' (e.g., 91769303XXXX)
+                const mobile = phone.startsWith('+') ? phone.substring(1) : phone;
+
+                // MSG91 OTP API (V5)
+                // https://control.msg91.com/api/v5/otp?template_id=TEMPLATE_ID&mobile=MOBILE&authkey=AUTH_KEY&otp=OTP
+                const response = await fetch(`https://control.msg91.com/api/v5/otp?template_id=${templateId}&mobile=${mobile}&authkey=${authKey}&otp=${code}`, {
+                    method: 'POST'
                 });
-                console.log(`[TWILIO] SMS sent to ${phone}`);
+
+                const data: any = await response.json();
+
+                if (data.type === 'success') {
+                    console.log(`[MSG91] OTP sent to ${phone}`);
+                } else {
+                    console.error("[MSG91 ERROR]", data);
+                    // Return specific error for easier debugging
+                    return c.json({ error: `SMS Failed: ${data.message || "Unknown MSG91 Error"}` }, 500);
+                }
             } catch (error: any) {
-                console.error("[TWILIO ERROR]", error);
-                // Return specific error for easier debugging
-                return c.json({ error: `SMS Failed: ${error.message || "Unknown Twilio Error"}` }, 500);
+                console.error("[MSG91 FETCH ERROR]", error);
+                return c.json({ error: `SMS Failed: ${error.message || "Network Error"}` }, 500);
             }
         } else {
             console.log(`[MOCK SMS] OTP for ${phone}: ${code}`);
-            console.warn("[WARN] Twilio credentials missing, using mock SMS.");
+            console.warn("[WARN] MSG91 credentials missing, using mock SMS.");
         }
 
         return c.json({ success: true, message: "OTP sent" });
