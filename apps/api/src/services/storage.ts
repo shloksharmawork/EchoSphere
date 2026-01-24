@@ -7,15 +7,15 @@ const S3_BUCKET = process.env.S3_BUCKET_NAME || "voice-notes";
 const S3_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID || "minio_admin";
 const S3_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY || "minio_password";
 
-// Force path style for MinIO
+// Force path style for MinIO, but let AWS decide (usually virtual host)
 const s3Client = new S3Client({
     region: S3_REGION,
     endpoint: S3_ENDPOINT,
     credentials: {
-        accessKeyId: S3_ACCESS_KEY,
+        accessKey_Id: S3_ACCESS_KEY,
         secretAccessKey: S3_SECRET_KEY,
     },
-    forcePathStyle: true,
+    forcePathStyle: !S3_ENDPOINT.includes("amazonaws.com"),
 });
 
 export const generateUploadUrl = async (key: string, contentType: string) => {

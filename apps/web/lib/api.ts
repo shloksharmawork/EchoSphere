@@ -23,7 +23,11 @@ export async function uploadFile(url: string, file: Blob) {
             'Content-Type': file.type
         }
     });
-    if (!res.ok) throw new Error('Failed to upload file');
+    if (!res.ok) {
+        const text = await res.text().catch(() => "No error body");
+        console.error(`[uploadFile] Status: ${res.status}, Body: ${text}`);
+        throw new Error(`Failed to upload file: ${res.status} ${res.statusText}`);
+    }
 }
 
 export async function createPin(data: {
