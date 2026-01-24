@@ -10,6 +10,7 @@ import { ProfileModal } from './profile-modal';
 import { ConnectionsInbox } from './connections-inbox';
 import { useAuth } from '../hooks/use-auth';
 import { useRealTime } from '../hooks/use-real-time';
+import { sendConnectionRequest } from '../lib/api';
 import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 
@@ -215,21 +216,11 @@ export default function MapView({ initialViewState }: MapViewProps) {
                                     <button
                                         onClick={async () => {
                                             try {
-                                                const res = await fetch(`${API_URL}/requests`, {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    credentials: 'include',
-                                                    body: JSON.stringify({ receiverId: selectedPin.creatorId })
-                                                });
-                                                const data = await res.json();
-                                                if (res.ok) {
-                                                    alert("Connection request sent!");
-                                                } else {
-                                                    alert(data.error || "Failed to send request");
-                                                }
-                                            } catch (e) {
+                                                await sendConnectionRequest(selectedPin.creatorId);
+                                                alert("Connection request sent!");
+                                            } catch (e: any) {
                                                 console.error(e);
-                                                alert("Error sending request");
+                                                alert(e.message || "Error sending request");
                                             }
                                         }}
                                         className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"

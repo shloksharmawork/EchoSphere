@@ -48,3 +48,17 @@ export async function createPin(data: {
     }
     return res.json();
 }
+
+export async function sendConnectionRequest(receiverId: string) {
+    const res = await fetch(`${API_URL}/connections/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ receiverId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        throw new Error(data.error || "Failed to send request");
+    }
+    return data;
+}

@@ -25,7 +25,11 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
     const isMissingKeys = S3_ACCESS_KEY === "minio_admin" || S3_SECRET_KEY === "minio_password";
 
     if (isLocal && isMissingKeys) {
-        console.warn("[WARN] S3 credentials missing or set to local. Using MOCK STORAGE.");
+        console.warn("\n" + "=".repeat(60));
+        console.warn("[CRITICAL] S3 credentials missing or set to local. FALLING BACK TO MOCK STORAGE.");
+        console.warn("If this is production, your voice drops will NOT record actual audio.");
+        console.warn("Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_ENDPOINT, and S3_BUCKET_NAME.");
+        console.warn("=".repeat(60) + "\n");
         return {
             url: "https://echo-sphere-mock-storage.vercel.app/unused", // Client won't actually call this
             key,
