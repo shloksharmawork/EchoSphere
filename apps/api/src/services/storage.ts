@@ -13,26 +13,25 @@ const isAWS = S3_ENDPOINT.includes("amazonaws.com");
 
 const s3Client = new S3Client({
     region: S3_REGION,
-    endpoint: S3_ENDPOINT,
+    // only provide endpoint if it's NOT standard AWS S3 (e.g. MinIO)
+    endpoint: isAWS ? undefined : S3_ENDPOINT,
     credentials: {
         accessKeyId: S3_ACCESS_KEY,
         secretAccessKey: S3_SECRET_KEY,
     },
+    // path-style is for MinIO/Local, virtual-host is for AWS
     forcePathStyle: !isAWS,
 });
 
 export const generateUploadUrl = async (key: string, contentType: string) => {
-    // ... (rest of isMock logic) ...
-    // [lines 22-42 in original file]
-
+    // 1. Check if Mock Storage should be used
     const isMock = !process.env.AWS_ACCESS_KEY_ID ||
         !process.env.AWS_SECRET_ACCESS_KEY ||
         process.env.AWS_ACCESS_KEY_ID === "minio_admin" ||
-        S3_ENDPOINT.includes("localhost") ||
-        S3_ENDPOINT.includes("127.0.0.1");
+        S3_ENDPOINT.includes("localhost");
 
     if (isMock) {
-        // ... (existing mock return)
+        console.warn("[Storage] Using Mock Fallback");
         return {
             url: "https://echo-sphere-mock-storage.vercel.app/unused",
             key,
@@ -42,20 +41,21 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
         };
     }
 
+    console.log(`[Storage] Generating Signed URL. Region: ${S3_REGION}, Bucket: ${S3_BUCKET}, Key: ${key}, isAWS: ${isAWS}`);
+
+    // 2. Create the command. 
+    // IMPORTANT: We remove ContentType from the Command to ensure the signer doesn't 
+    // include it in the signed headers, making the request from the browser more flexible.
     const command = new PutObjectCommand({
         Bucket: S3_BUCKET,
         Key: key,
-        ContentType: contentType,
-        // Removed ChecksumAlgorithm entirely to prevent 400 Bad Request from mandatory checksum headers
     });
 
-    // URL expires in 5 minutes
+    // 3. Generate Signed URL
     const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
 
-    // For real AWS S3, use virtual-host style URL: https://bucket.s3.region.amazonaws.com/key
-    // For MinIO/Local dev, stick to path style or the provided endpoint
-    const isStandardS3 = S3_ENDPOINT.includes("amazonaws.com");
-    const publicUrl = isStandardS3
+    // 4. Calculate Public URL
+    const publicUrl = isAWS
         ? `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`
         : `${S3_ENDPOINT}/${S3_BUCKET}/${key}`;
 
