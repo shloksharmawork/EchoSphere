@@ -12,7 +12,7 @@ const s3Client = new S3Client({
     region: S3_REGION,
     endpoint: S3_ENDPOINT,
     credentials: {
-        accessKey_Id: S3_ACCESS_KEY,
+        accessKeyId: S3_ACCESS_KEY,
         secretAccessKey: S3_SECRET_KEY,
     },
     forcePathStyle: !S3_ENDPOINT.includes("amazonaws.com"),
