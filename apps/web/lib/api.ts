@@ -7,7 +7,11 @@ export async function getUploadUrl(contentType: string, fileSize: number) {
         credentials: 'include',
         body: JSON.stringify({ contentType, fileSize })
     });
-    if (!res.ok) throw new Error('Failed to get upload URL');
+    if (!res.ok) {
+        const error = new Error(`Failed to get upload URL: ${res.status} ${res.statusText}`) as any;
+        error.response = res;
+        throw error;
+    }
     return res.json();
 }
 
