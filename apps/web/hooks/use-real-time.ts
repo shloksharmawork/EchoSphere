@@ -1,6 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://127.0.0.1:3001/ws';
+import { API_URL } from '../lib/api';
+
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (API_URL.startsWith('https')
+    ? API_URL.replace('https', 'wss').replace(/\/$/, '') + '/ws'
+    : API_URL.replace('http', 'ws').replace(/\/$/, '') + '/ws');
 
 export function useRealTime(user?: any, onNewPin?: (pin: any) => void, onNotification?: (payload: any) => void) {
     const [isConnected, setIsConnected] = useState(false);
