@@ -132,24 +132,32 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
 
             // Apply masking if enabled before upload
             if (voiceMaskingEnabled) {
+                console.log("[VoiceRecorder] Applying voice masking...");
                 setIsProcessing(true);
                 blobToUpload = await applyVoiceMasking(audioBlob);
                 setIsProcessing(false);
             }
 
             // 1. Get Upload URL
+            console.log("[VoiceRecorder] Requesting upload URL...");
             const { uploadUrl, url, isMock } = await getUploadUrl(
                 blobToUpload.type,
                 blobToUpload.size
             );
+            console.log(`[VoiceRecorder] Got upload URL. Mock: ${isMock}, URL for Pin: ${url}`);
 
             // 2. Upload to Storage (Skip if Mock)
             if (!isMock) {
+                console.log("[VoiceRecorder] Uploading file to storage...");
                 await uploadFile(uploadUrl, blobToUpload);
+                console.log("[VoiceRecorder] File uploaded successfully.");
+            } else {
+                console.log("[VoiceRecorder] Skipping S3 upload (Mock Storage)");
             }
 
             // 3. Create Pin
-            await createPin({
+            console.log("[VoiceRecorder] Creating pin in database...");
+            const pinResult = await createPin({
                 audioUrl: url,
                 latitude,
                 longitude,
@@ -158,11 +166,23 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                 voiceMaskingEnabled,
                 title: isAnonymous ? "Anonymous Drop" : "Voice Drop"
             });
+            console.log("[VoiceRecorder] Pin created successfully:", pinResult);
 
             onSuccess();
-        } catch (error) {
-            console.error(error);
-            alert("Failed to drop voice. Please try again.");
+        } catch (error: any) {
+            console.error("[VoiceRecorder] ERROR:", error);
+            // If the error has a response property (like from fetch), try to log it
+            if (error.response) {
+                try {
+                    const errorData = await error.response.json();
+                    console.error("[VoiceRecorder] API Error Response:", errorData);
+                    alert(`Failed to drop voice: ${errorData.message || errorData.error || error.message}`);
+                } catch (e) {
+                    alert(`Failed to drop voice: ${error.message}`);
+                }
+            } else {
+                alert(`Failed to drop voice: ${error.message || 'Check console for details'}`);
+            }
         } finally {
             setIsUploading(false);
             setIsProcessing(false);

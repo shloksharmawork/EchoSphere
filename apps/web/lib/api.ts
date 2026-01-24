@@ -37,6 +37,10 @@ export async function createPin(data: {
         credentials: 'include',
         body: JSON.stringify(data)
     });
-    if (!res.ok) throw new Error('Failed to create pin');
+    if (!res.ok) {
+        const error = new Error('Failed to create pin') as any;
+        error.response = res;
+        throw error;
+    }
     return res.json();
 }
