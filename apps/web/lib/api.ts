@@ -20,9 +20,7 @@ export async function uploadFile(url: string, file: Blob) {
     const res = await fetch(url, {
         method: 'PUT',
         body: file,
-        headers: {
-            'Content-Type': file.type
-        }
+        headers: {} // No Content-Type to match simplified signature
     });
     if (!res.ok) {
         const text = await res.text().catch(() => "No error body");
