@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Fixed component imports
 
 import React, { useState, useEffect } from 'react';
 import { User, Check, X, Play, Loader2, MessageSquare, History, Mic } from 'lucide-react';
