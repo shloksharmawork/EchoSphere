@@ -7,7 +7,10 @@ const S3_BUCKET = process.env.S3_BUCKET_NAME || "voice-notes";
 const S3_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID || "minio_admin";
 const S3_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY || "minio_password";
 
-// Force path style for MinIO, but let AWS decide (usually virtual host)
+// For standard AWS S3, we should NOT force path style. 
+// For MinIO/Local, we MUST force path style.
+const isAWS = S3_ENDPOINT.includes("amazonaws.com");
+
 const s3Client = new S3Client({
     region: S3_REGION,
     endpoint: S3_ENDPOINT,
@@ -15,11 +18,13 @@ const s3Client = new S3Client({
         accessKeyId: S3_ACCESS_KEY,
         secretAccessKey: S3_SECRET_KEY,
     },
-    forcePathStyle: !S3_ENDPOINT.includes("amazonaws.com"),
+    forcePathStyle: !isAWS,
 });
 
 export const generateUploadUrl = async (key: string, contentType: string) => {
-    // If S3 keys are missing OR set to local default, and we aren't explicitly 100% configured
+    // ... (rest of isMock logic) ...
+    // [lines 22-42 in original file]
+
     const isMock = !process.env.AWS_ACCESS_KEY_ID ||
         !process.env.AWS_SECRET_ACCESS_KEY ||
         process.env.AWS_ACCESS_KEY_ID === "minio_admin" ||
@@ -27,11 +32,7 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
         S3_ENDPOINT.includes("127.0.0.1");
 
     if (isMock) {
-        console.warn("\n" + "=".repeat(60));
-        console.warn("[CRITICAL] S3 credentials missing or set to local. FALLING BACK TO MOCK STORAGE.");
-        console.warn("If this is production, your voice drops will NOT record actual audio.");
-        console.warn("Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_ENDPOINT, and S3_BUCKET_NAME.");
-        console.warn("=".repeat(60) + "\n");
+        // ... (existing mock return)
         return {
             url: "https://echo-sphere-mock-storage.vercel.app/unused",
             key,
@@ -45,7 +46,7 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
         Bucket: S3_BUCKET,
         Key: key,
         ContentType: contentType,
-        ChecksumAlgorithm: undefined // Prevents mandatory checksum headers that browser fetch might not send
+        // Removed ChecksumAlgorithm entirely to prevent 400 Bad Request from mandatory checksum headers
     });
 
     // URL expires in 5 minutes
