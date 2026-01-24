@@ -1,25 +1,22 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const S3_ENDPOINT = process.env.S3_ENDPOINT || "http://localhost:9000";
-const S3_REGION = process.env.AWS_REGION || "us-east-1";
-const S3_BUCKET = process.env.S3_BUCKET_NAME || "voice-notes";
-const S3_ACCESS_KEY = process.env.AWS_ACCESS_KEY_ID || "minio_admin";
-const S3_SECRET_KEY = process.env.AWS_SECRET_ACCESS_KEY || "minio_password";
+const S3_ENDPOINT = process.env.S3_ENDPOINT || "https://s3.eu-north-1.amazonaws.com";
+const S3_REGION = process.env.AWS_REGION || "eu-north-1";
+const S3_BUCKET = process.env.S3_BUCKET_NAME || "voice-notes-shlok-2026";
 
-// For standard AWS S3, we should NOT force path style. 
-// For MinIO/Local, we MUST force path style.
+// Log configuration (masked) to help user find missing env vars in Render logs
+console.log(`[Storage Config] Bucket: ${S3_BUCKET}, Region: ${S3_REGION}, Endpoint: ${S3_ENDPOINT}`);
+
 const isAWS = S3_ENDPOINT.includes("amazonaws.com");
 
 const s3Client = new S3Client({
     region: S3_REGION,
-    // only provide endpoint if it's NOT standard AWS S3 (e.g. MinIO)
     endpoint: isAWS ? undefined : S3_ENDPOINT,
     credentials: {
-        accessKeyId: S3_ACCESS_KEY,
-        secretAccessKey: S3_SECRET_KEY,
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
     },
-    // path-style is for MinIO/Local, virtual-host is for AWS
     forcePathStyle: !isAWS,
 });
 

@@ -1,7 +1,12 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-console.log("[API] Using URL:", API_URL);
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ||
+    (typeof window !== 'undefined' && window.location.hostname.includes('vercel.app')
+        ? 'https://echosphere-api.onrender.com' // Fallback to your likely Render URL
+        : 'http://localhost:3001');
+
+console.log("[EchoSphere API] Endpoint:", API_URL);
 
 export async function getUploadUrl(contentType: string, fileSize: number) {
+    console.log(`[API] Requesting Upload URL for ${contentType} (${fileSize} bytes)`);
     const res = await fetch(`${API_URL}/upload-url`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
