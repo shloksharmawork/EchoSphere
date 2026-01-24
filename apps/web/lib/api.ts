@@ -49,12 +49,12 @@ export async function createPin(data: {
     return res.json();
 }
 
-export async function sendConnectionRequest(receiverId: string) {
+export async function sendConnectionRequest(receiverId: string, audioIntroUrl?: string) {
     const res = await fetch(`${API_URL}/connections/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ receiverId })
+        body: JSON.stringify({ receiverId, audioIntroUrl })
     });
     const data = await res.json();
     if (!res.ok) {

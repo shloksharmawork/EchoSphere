@@ -5,6 +5,7 @@ import { Map, GeolocateControl, NavigationControl, Marker, Popup } from 'react-m
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { AudioPlayer } from './audio-player';
 import { VoiceRecorder } from './voice-recorder';
+import { ConnectionPrompt } from './connection-prompt';
 import { SafetyActions, BlockUserAction } from './safety-actions';
 import { ProfileModal } from './profile-modal';
 import { ConnectionsInbox } from './connections-inbox';
@@ -46,6 +47,8 @@ export default function MapView({ initialViewState }: MapViewProps) {
     const [showRecorder, setShowRecorder] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     const [showInbox, setShowInbox] = useState(false);
+    const [showConnectionPrompt, setShowConnectionPrompt] = useState(false);
+    const [connectingUserId, setConnectingUserId] = useState<string | null>(null);
     const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
     const [notifications, setNotifications] = useState<any[]>([]);
 
@@ -214,14 +217,9 @@ export default function MapView({ initialViewState }: MapViewProps) {
                             <div className="flex gap-2 mt-3">
                                 {user && selectedPin.creatorId !== user.id && (
                                     <button
-                                        onClick={async () => {
-                                            try {
-                                                await sendConnectionRequest(selectedPin.creatorId);
-                                                alert("Connection request sent!");
-                                            } catch (e: any) {
-                                                console.error(e);
-                                                alert(e.message || "Error sending request");
-                                            }
+                                        onClick={() => {
+                                            setConnectingUserId(selectedPin.creatorId);
+                                            setShowConnectionPrompt(true);
                                         }}
                                         className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
                                     >
@@ -310,6 +308,18 @@ export default function MapView({ initialViewState }: MapViewProps) {
 
             {showInbox && (
                 <ConnectionsInbox onClose={() => setShowInbox(false)} />
+            )}
+
+            {showConnectionPrompt && connectingUserId && (
+                <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <ConnectionPrompt
+                        receiverId={connectingUserId}
+                        onClose={() => {
+                            setShowConnectionPrompt(false);
+                            setConnectingUserId(null);
+                        }}
+                    />
+                </div>
             )}
         </div>
     );

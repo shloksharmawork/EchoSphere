@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, Check, X, Play, Loader2, MessageSquare, History } from 'lucide-react';
+import { AudioPlayer } from './audio-player';
 import { useAuth } from '../hooks/use-auth';
 import Image from 'next/image';
 
@@ -124,15 +125,16 @@ export function ConnectionsInbox({ onClose }: ConnectionsInboxProps) {
                                             <span className="text-zinc-500 text-[10px] uppercase font-bold tracking-widest">Sent {new Date(req.createdAt).toLocaleDateString()}</span>
                                         </div>
                                     </div>
-                                    {req.audioIntroUrl && (
-                                        <button
-                                            onClick={() => new Audio(req.audioIntroUrl!).play()}
-                                            className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl hover:bg-indigo-500 hover:text-white transition-all"
-                                        >
-                                            <Play size={18} fill="currentColor" />
-                                        </button>
-                                    )}
                                 </div>
+
+                                {req.audioIntroUrl && (
+                                    <div className="px-2">
+                                        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                                            <Mic size={10} /> Voice Intro
+                                        </div>
+                                        <AudioPlayer src={req.audioIntroUrl} />
+                                    </div>
+                                )}
 
                                 <div className="flex gap-2">
                                     <button
