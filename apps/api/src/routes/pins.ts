@@ -60,16 +60,29 @@ app.post("/pins", zValidator('json', createPinSchema), async (c) => {
       expiresAt: new Date(Date.now() + 15 * 60 * 60 * 1000), // Expire in 15 hours
     }).returning();
 
-    console.log(`[POST /pins] Pin created with ID ${newPin.id}`);
+    // Format pin for broadcast/response (matches GET /pins structure)
+    const formattedPin = {
+      id: newPin.id,
+      audioUrl: newPin.audioUrl,
+      title: newPin.title,
+      isAnonymous: newPin.isAnonymousPost,
+      voiceMaskingEnabled: newPin.voiceMaskingEnabled,
+      createdAt: newPin.createdAt,
+      creatorId: newPin.creatorId,
+      location: {
+        type: 'Point',
+        coordinates: [body.longitude, body.latitude] // Use the exact drop coordinates (not jittered for the creator/broadcast)
+      }
+    };
 
     // Broadcast new pin to connected clients via WebSocket
     wss.clients.forEach((client) => {
       if (client.readyState === 1) { // OPEN
-        client.send(JSON.stringify({ type: 'new_pin', pin: newPin }));
+        client.send(JSON.stringify({ type: 'new_pin', pin: formattedPin }));
       }
     });
 
-    return c.json({ success: true, pin: newPin });
+    return c.json({ success: true, pin: formattedPin });
   } catch (err: any) {
     console.error(`[POST /pins] Database error: ${err.message}`);
     return c.json({ error: "Failed to create pin in database", message: err.message }, 500);
