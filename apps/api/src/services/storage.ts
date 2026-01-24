@@ -49,11 +49,19 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
 
     // URL expires in 5 minutes
     const url = await getSignedUrl(s3Client, command, { expiresIn: 300 });
+
+    // For real AWS S3, use virtual-host style URL: https://bucket.s3.region.amazonaws.com/key
+    // For MinIO/Local dev, stick to path style or the provided endpoint
+    const isStandardS3 = S3_ENDPOINT.includes("amazonaws.com");
+    const publicUrl = isStandardS3
+        ? `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`
+        : `${S3_ENDPOINT}/${S3_BUCKET}/${key}`;
+
     return {
         url,
         key,
         bucket: S3_BUCKET,
-        publicUrl: `${S3_ENDPOINT}/${S3_BUCKET}/${key}`, // Assuming public bucket
+        publicUrl,
         isMock: false
     };
 };
