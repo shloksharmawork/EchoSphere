@@ -1,4 +1,5 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+console.log("[API] Using URL:", API_URL);
 
 export async function getUploadUrl(contentType: string, fileSize: number) {
     const res = await fetch(`${API_URL}/upload-url`, {

@@ -45,6 +45,7 @@ export const generateUploadUrl = async (key: string, contentType: string) => {
         Bucket: S3_BUCKET,
         Key: key,
         ContentType: contentType,
+        checksumAlgorithm: undefined // Prevents mandatory checksum headers that browser fetch might not send
     });
 
     // URL expires in 5 minutes
