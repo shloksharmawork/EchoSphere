@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { User, Check, X, Play, Loader2, MessageSquare, History } from 'lucide-react';
+import { User, Check, X, Play, Loader2, MessageSquare, History, Mic } from 'lucide-react';
 import { AudioPlayer } from './audio-player';
 import { useAuth } from '../hooks/use-auth';
 import Image from 'next/image';
