@@ -250,7 +250,7 @@ export default function MapView({ initialViewState }: MapViewProps) {
             {/* Header Overlay */}
             <div className="absolute top-6 left-6 right-6 z-10 flex justify-between items-start pointer-events-none">
                 <h1 className="text-3xl font-black text-white tracking-tighter drop-shadow-2xl flex items-center gap-2 select-none">
-                    EchoSphere <span className="text-emerald-400 text-sm font-bold uppercase track-widest px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 backdrop-blur-md">Live</span>
+                    EchoSphere Live <span className="text-emerald-400 text-sm font-bold uppercase track-widest px-2 py-0.5 bg-emerald-500/10 rounded-full border border-emerald-500/20 backdrop-blur-md">Live</span>
                 </h1>
                 <div className="flex items-center gap-3">
                     <button
