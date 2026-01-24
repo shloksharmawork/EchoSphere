@@ -19,22 +19,24 @@ const s3Client = new S3Client({
 });
 
 export const generateUploadUrl = async (key: string, contentType: string) => {
-    // If S3 keys are missing or set to local, and we are on Render (production-ish)
-    // we use Mock Storage to avoid "Unable to fetch" errors.
-    const isLocal = S3_ENDPOINT.includes("localhost") || S3_ENDPOINT.includes("127.0.0.1");
-    const isMissingKeys = S3_ACCESS_KEY === "minio_admin" || S3_SECRET_KEY === "minio_password";
+    // If S3 keys are missing OR set to local default, and we aren't explicitly 100% configured
+    const isMock = !process.env.AWS_ACCESS_KEY_ID ||
+        !process.env.AWS_SECRET_ACCESS_KEY ||
+        process.env.AWS_ACCESS_KEY_ID === "minio_admin" ||
+        S3_ENDPOINT.includes("localhost") ||
+        S3_ENDPOINT.includes("127.0.0.1");
 
-    if (isLocal && isMissingKeys) {
+    if (isMock) {
         console.warn("\n" + "=".repeat(60));
         console.warn("[CRITICAL] S3 credentials missing or set to local. FALLING BACK TO MOCK STORAGE.");
         console.warn("If this is production, your voice drops will NOT record actual audio.");
         console.warn("Please set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_ENDPOINT, and S3_BUCKET_NAME.");
         console.warn("=".repeat(60) + "\n");
         return {
-            url: "https://echo-sphere-mock-storage.vercel.app/unused", // Client won't actually call this
+            url: "https://echo-sphere-mock-storage.vercel.app/unused",
             key,
             bucket: "mock-bucket",
-            publicUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", // Use a real public sample mp3
+            publicUrl: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
             isMock: true
         };
     }

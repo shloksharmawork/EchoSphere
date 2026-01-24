@@ -20,6 +20,7 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
     const [isAnonymous, setIsAnonymous] = useState(false);
     const [voiceMaskingEnabled, setVoiceMaskingEnabled] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const [isMockStorage, setIsMockStorage] = useState(false);
 
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -145,6 +146,7 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                 blobToUpload.size
             );
             console.log(`[VoiceRecorder] Got upload URL. Mock: ${isMock}, URL for Pin: ${url}`);
+            if (isMock) setIsMockStorage(true);
 
             // 2. Upload to Storage (Skip if Mock)
             if (!isMock) {
@@ -201,6 +203,15 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                 <h3 className="text-lg font-bold text-white">Record Voice Drop</h3>
                 <button onClick={onClose} className="text-zinc-500 hover:text-white">&times;</button>
             </div>
+
+            {isMockStorage && (
+                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/50 rounded-lg text-amber-500 text-xs leading-relaxed animate-in fade-in zoom-in duration-300">
+                    <p className="font-bold flex items-center gap-2 mb-1">
+                        <span className="text-base text-white">⚠️</span> MOCK STORAGE ACTIVE
+                    </p>
+                    <p>Your production environment is missing storage credentials. Voice recordings will play sample music instead of your voice.</p>
+                </div>
+            )}
 
             <div className="flex flex-col items-center justify-center space-y-6">
 
