@@ -24,18 +24,18 @@ const app = new Hono<{ Variables: Variables }>()
 
 app.use('/*', cors({
     origin: (origin) => {
+        if (!origin) return process.env.FRONTEND_URL || 'http://localhost:3000';
+
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         const allowedOrigins = frontendUrl.split(',').map(url => url.trim().replace(/\/$/, ''));
-
-        if (!origin) return allowedOrigins[0];
-
         const normalizedOrigin = origin.replace(/\/$/, '');
 
-        if (allowedOrigins.includes(normalizedOrigin)) {
+        // Allow explicit frontend URLs or any vercel.app subdomain
+        if (allowedOrigins.includes(normalizedOrigin) || normalizedOrigin.endsWith('.vercel.app')) {
             return origin;
         }
 
-        console.log(`[CORS] Origin rejected: ${origin}. Allowed: ${allowedOrigins.join(', ')}`);
+        console.log(`[CORS] Origin rejected: ${origin}`);
         return null;
     },
     credentials: true,
