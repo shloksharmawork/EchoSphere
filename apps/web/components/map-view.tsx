@@ -10,7 +10,7 @@ import { ProfileModal } from './profile-modal';
 import { ConnectionsInbox } from './connections-inbox';
 import { useAuth } from '../hooks/use-auth';
 import { useRealTime } from '../hooks/use-real-time';
-import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell } from 'lucide-react';
+import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus } from 'lucide-react';
 import Image from 'next/image';
 
 interface MapViewProps {
@@ -210,7 +210,33 @@ export default function MapView({ initialViewState }: MapViewProps) {
                             </div>
                             <AudioPlayer src={selectedPin.audioUrl} autoplay />
 
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 mt-3">
+                                {user && selectedPin.creatorId !== user.id && (
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                const res = await fetch(`${API_URL}/requests`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    credentials: 'include',
+                                                    body: JSON.stringify({ receiverId: selectedPin.creatorId })
+                                                });
+                                                const data = await res.json();
+                                                if (res.ok) {
+                                                    alert("Connection request sent!");
+                                                } else {
+                                                    alert(data.error || "Failed to send request");
+                                                }
+                                            } catch (e) {
+                                                console.error(e);
+                                                alert("Error sending request");
+                                            }
+                                        }}
+                                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                                    >
+                                        <UserPlus size={14} /> Connect
+                                    </button>
+                                )}
                                 <SafetyActions
                                     targetType="PIN"
                                     targetId={selectedPin.id.toString()}

@@ -58,10 +58,28 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
         updatePreview();
     }, [voiceMaskingEnabled, audioBlob]);
 
+    const [mimeType, setMimeType] = useState<string>("");
+
+    useEffect(() => {
+        const types = [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4",
+            "audio/ogg;codecs=opus"
+        ];
+        const supported = types.find(type => MediaRecorder.isTypeSupported(type));
+        if (supported) {
+            setMimeType(supported);
+        } else {
+            console.warn("No supported audio mime-type found, falling back to default");
+        }
+    }, []);
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            const options = mimeType ? { mimeType } : undefined;
+            const mediaRecorder = new MediaRecorder(stream, options);
             mediaRecorderRef.current = mediaRecorder;
             chunksRef.current = [];
 
@@ -70,7 +88,8 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
             };
 
             mediaRecorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const type = mimeType || 'audio/webm';
+                const blob = new Blob(chunksRef.current, { type });
                 setAudioBlob(blob);
                 setPreviewUrl(URL.createObjectURL(blob));
                 stream.getTracks().forEach(track => track.stop());

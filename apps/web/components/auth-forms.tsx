@@ -153,7 +153,8 @@ export function SignupForm() {
         try {
             const fullPhone = `+${countryCode}${phone}`;
             await signup(username, email, fullPhone, countryCode, password, avatarUrl);
-            router.push("/");
+            alert("Account created successfully! Please log in.");
+            router.push("/login");
         } catch (err: any) {
             setError(err.message);
         } finally {
