@@ -27,10 +27,24 @@ export function ConnectionPrompt({ receiverId, onClose }: ConnectionPromptProps)
         };
     }, [previewUrl]);
 
+    const [mimeType, setMimeType] = useState<string>("");
+
+    useEffect(() => {
+        const types = [
+            "audio/webm;codecs=opus",
+            "audio/webm",
+            "audio/mp4",
+            "audio/ogg;codecs=opus"
+        ];
+        const supported = types.find(type => MediaRecorder.isTypeSupported(type));
+        if (supported) setMimeType(supported);
+    }, []);
+
     const startRecording = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const mediaRecorder = new MediaRecorder(stream);
+            const options = mimeType ? { mimeType } : undefined;
+            const mediaRecorder = new MediaRecorder(stream, options);
             mediaRecorderRef.current = mediaRecorder;
             chunksRef.current = [];
 
@@ -39,7 +53,8 @@ export function ConnectionPrompt({ receiverId, onClose }: ConnectionPromptProps)
             };
 
             mediaRecorder.onstop = () => {
-                const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+                const type = mimeType || 'audio/webm';
+                const blob = new Blob(chunksRef.current, { type });
                 setAudioBlob(blob);
                 setPreviewUrl(URL.createObjectURL(blob));
                 stream.getTracks().forEach(track => track.stop());
@@ -78,12 +93,15 @@ export function ConnectionPrompt({ receiverId, onClose }: ConnectionPromptProps)
 
         try {
             // 1. Get Upload URL
+            console.log("[ConnectionPrompt] Requesting upload URL...");
             const { uploadUrl, url } = await getUploadUrl(audioBlob.type, audioBlob.size);
 
             // 2. Upload
+            console.log(`[ConnectionPrompt] Uploading to: ${uploadUrl}`);
             await uploadFile(uploadUrl, audioBlob);
 
             // 3. Send Request
+            console.log(`[ConnectionPrompt] Sending connection request with audio: ${url}`);
             await sendConnectionRequest(receiverId, url);
 
             setStatus('SENT');
