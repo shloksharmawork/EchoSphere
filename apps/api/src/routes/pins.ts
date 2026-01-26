@@ -23,6 +23,7 @@ const createPinSchema = z.object({
   duration: z.number().optional(), // Audio duration in seconds
   isAnonymous: z.boolean().default(false),
   voiceMaskingEnabled: z.boolean().default(false),
+  expiryHours: z.number().default(15),
 });
 
 const getPinsSchema = z.object({
@@ -57,7 +58,7 @@ app.post("/pins", zValidator('json', createPinSchema), async (c) => {
       voiceMaskingEnabled: body.voiceMaskingEnabled,
       geom: sql`ST_SetSRID(ST_MakePoint(${body.longitude}, ${body.latitude}), 4326)`,
       fuzzyGeom: sql`ST_SetSRID(ST_MakePoint(${jitterLng}, ${jitterLat}), 4326)`,
-      expiresAt: new Date(Date.now() + 15 * 60 * 60 * 1000), // Expire in 15 hours
+      expiresAt: new Date(Date.now() + body.expiryHours * 60 * 60 * 1000), // Custom expiry
     }).returning();
 
     // Format pin for broadcast/response (matches GET /pins structure)
@@ -137,6 +138,28 @@ app.get("/pins", zValidator('query', getPinsSchema), async (c) => {
   `);
 
   return c.json({ pins: nearbyPins });
+});
+
+// 4. Delete Voice Pin (Creator Only)
+app.delete("/pins/:id", async (c) => {
+  const user = c.get('user');
+  if (!user) return c.json({ error: "Authentication required" }, 401);
+
+  const id = parseInt(c.req.param('id'));
+  if (isNaN(id)) return c.json({ error: "Invalid ID" }, 400);
+
+  try {
+    const [existing] = await db.select().from(voicePins).where(eq(voicePins.id, id)).limit(1);
+
+    if (!existing) return c.json({ error: "Pin not found" }, 404);
+    if (existing.creatorId !== user.id) return c.json({ error: "Unauthorized" }, 403);
+
+    await db.delete(voicePins).where(eq(voicePins.id, id));
+
+    return c.json({ success: true });
+  } catch (err: any) {
+    return c.json({ error: "Failed to delete pin", message: err.message }, 500);
+  }
 });
 
 export default app;

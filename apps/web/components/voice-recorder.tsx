@@ -21,6 +21,7 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
     const [voiceMaskingEnabled, setVoiceMaskingEnabled] = useState(false);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [isMockStorage, setIsMockStorage] = useState(false);
+    const [expiryHours, setExpiryHours] = useState(15);
 
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -166,6 +167,7 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                 duration: recordingTime,
                 isAnonymous,
                 voiceMaskingEnabled,
+                expiryHours,
                 title: isAnonymous ? "Anonymous Drop" : "Voice Drop"
             });
             console.log("[VoiceRecorder] Pin created successfully:", pinResult);
@@ -281,6 +283,25 @@ export function VoiceRecorder({ latitude, longitude, onClose, onSuccess }: Voice
                                 className="accent-emerald-500 w-4 h-4"
                             />
                         </label>
+                        <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-800">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-zinc-300 text-sm">Visible for</span>
+                                <span className="text-emerald-500 text-sm font-bold">{expiryHours} Hours</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="1"
+                                max="24"
+                                value={expiryHours}
+                                onChange={(e) => setExpiryHours(parseInt(e.target.value))}
+                                className="w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                            />
+                            <div className="flex justify-between text-[10px] text-zinc-500 mt-1">
+                                <span>1h</span>
+                                <span>12h</span>
+                                <span>24h</span>
+                            </div>
+                        </div>
                     </div>
                 )}
 

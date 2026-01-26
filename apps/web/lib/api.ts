@@ -42,6 +42,7 @@ export async function createPin(data: {
     duration?: number;
     isAnonymous?: boolean;
     voiceMaskingEnabled?: boolean;
+    expiryHours?: number;
 }) {
     const res = await fetch(`${API_URL}/pins`, {
         method: 'POST',
@@ -51,6 +52,19 @@ export async function createPin(data: {
     });
     if (!res.ok) {
         const error = new Error('Failed to create pin') as any;
+        error.response = res;
+        throw error;
+    }
+    return res.json();
+}
+
+export async function deletePin(pinId: number) {
+    const res = await fetch(`${API_URL}/pins/${pinId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+    });
+    if (!res.ok) {
+        const error = new Error('Failed to delete pin') as any;
         error.response = res;
         throw error;
     }

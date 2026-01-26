@@ -15,7 +15,8 @@ import { sendConnectionRequest } from '../lib/api';
 import { analyzeVoice, VibeResult } from '../lib/ai-service';
 import { VibeRipple } from './ui/vibe-ripple';
 import { EavesdropScroll } from './eavesdrop-scroll';
-import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus, Play, ShieldCheck } from 'lucide-react';
+import { deletePin } from '../lib/api';
+import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus, Play, ShieldCheck, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 
 interface MapViewProps {
@@ -278,6 +279,25 @@ export default function MapView({ initialViewState }: MapViewProps) {
                                     <button className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
                                         <MessageSquare size={16} />
                                     </button>
+                                    {user && selectedPin.creatorId === user.id && (
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm("Delete this voice drop?")) {
+                                                    try {
+                                                        await deletePin(selectedPin.id);
+                                                        setPins(prev => prev.filter(p => p.id !== selectedPin.id));
+                                                        setSelectedPin(null);
+                                                    } catch (e) {
+                                                        alert("Failed to delete pin");
+                                                    }
+                                                }
+                                            }}
+                                            className="p-2 rounded-full bg-red-900/30 text-red-500 hover:bg-red-900/50 transition-colors"
+                                            title="Delete Drop"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
                                 </div>
 
                                 {selectedPinVibe?.intent && (
