@@ -12,7 +12,10 @@ import { ConnectionsInbox } from './connections-inbox';
 import { useAuth } from '../hooks/use-auth';
 import { useRealTime } from '../hooks/use-real-time';
 import { sendConnectionRequest } from '../lib/api';
-import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus } from 'lucide-react';
+import { analyzeVoice, VibeResult } from '../lib/ai-service';
+import { VibeRipple } from './ui/vibe-ripple';
+import { EavesdropScroll } from './eavesdrop-scroll';
+import { Mic, ArrowRight, User as UserIcon, MessageSquare, Bell, UserPlus, Play, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 
 interface MapViewProps {
@@ -30,6 +33,12 @@ interface Pin {
     isAnonymous: boolean;
     voiceMaskingEnabled: boolean;
     creatorId: string;
+    // New fields (mocked for now)
+    tier?: 'standard' | 'gold' | 'silver';
+    isVerified?: boolean;
+    vibe?: string;
+    intent?: string;
+    locationName?: string;
 }
 
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -44,6 +53,7 @@ export default function MapView({ initialViewState }: MapViewProps) {
     });
     const [pins, setPins] = useState<Pin[]>([]);
     const [selectedPin, setSelectedPin] = useState<Pin | null>(null);
+    const [selectedPinVibe, setSelectedPinVibe] = useState<VibeResult | null>(null);
     const [showRecorder, setShowRecorder] = useState(false);
     const [showProfile, setShowProfile] = useState(false);
     const [showInbox, setShowInbox] = useState(false);
@@ -79,7 +89,15 @@ export default function MapView({ initialViewState }: MapViewProps) {
             const res = await fetch(`${API_URL}/pins?lat=${viewState.latitude}&lng=${viewState.longitude}&radius=5000`);
             if (res.ok) {
                 const data = await res.json();
-                setPins(data.pins);
+                // Augment with mock data for visuals
+                const augmentedPins = data.pins.map((p: any) => ({
+                    ...p,
+                    tier: Math.random() > 0.9 ? 'gold' : Math.random() > 0.8 ? 'silver' : 'standard',
+                    isVerified: Math.random() > 0.8,
+                    vibe: ["Chill", "Hype", "Mysterious"][Math.floor(Math.random() * 3)],
+                    locationName: "Unknown Location" // Placeholder
+                }));
+                setPins(augmentedPins);
             }
         } catch (e) {
             console.error("Failed to fetch pins", e);
@@ -127,7 +145,7 @@ export default function MapView({ initialViewState }: MapViewProps) {
                 {...viewState}
                 onMove={evt => setViewState(evt.viewState)}
                 style={{ width: '100%', height: '100%' }}
-                mapStyle="mapbox://styles/mapbox/navigation-night-v1" // Richer dark aesthetic
+                mapStyle="mapbox://styles/mapbox/dark-v11" // Sleeker dark mode matching the design
                 mapboxAccessToken={TOKEN}
                 attributionControl={false}
             >
@@ -168,79 +186,105 @@ export default function MapView({ initialViewState }: MapViewProps) {
                     </Marker>
                 )}
 
-                {/* Voice Pins */}
+                {/* Voice Pins (Vibe Ripples) */}
                 {pins.map(pin => (
                     <Marker
                         key={pin.id}
                         longitude={pin.location.coordinates[0]}
                         latitude={pin.location.coordinates[1]}
-                        anchor="bottom"
+                        anchor="center"
                         onClick={(e) => {
                             e.originalEvent.stopPropagation();
                             setSelectedPin(pin);
+                            // Trigger AI Analysis on click
+                            analyzeVoice(pin.audioUrl).then(setSelectedPinVibe);
                         }}
                     >
-                        <div className={`w-10 h-10 rounded-full border-2 border-white/90 shadow-lg flex items-center justify-center cursor-pointer transition-all hover:scale-110 hover:-translate-y-1 ${pin.isAnonymous ? 'bg-zinc-600' : 'bg-emerald-500'} backdrop-blur-sm`}>
-                            {pin.voiceMaskingEnabled ? (
-                                <div className="w-4 h-4 rounded-sm bg-white/80" />
-                            ) : (
-                                <div className="w-3 h-3 bg-white rounded-full animate-bounce" />
-                            )}
+                        <div className="cursor-pointer">
+                            <VibeRipple
+                                variant={pin.tier || 'standard'}
+                                isVerified={pin.isVerified}
+                                voiceMasking={pin.voiceMaskingEnabled}
+                            />
                         </div>
                     </Marker>
                 ))}
 
-                {/* Popup Player */}
+                {/* Aura Bubble Popup */}
                 {selectedPin && (
                     <Popup
                         longitude={selectedPin.location.coordinates[0]}
                         latitude={selectedPin.location.coordinates[1]}
-                        anchor="top"
-                        onClose={() => setSelectedPin(null)}
+                        anchor="center"
+                        onClose={() => {
+                            setSelectedPin(null);
+                            setSelectedPinVibe(null);
+                        }}
                         closeButton={false}
-                        className="z-50"
-                        offset={20}
+                        className="z-50 aura-popup"
+                        maxWidth="300px"
                     >
-                        <div className="bg-zinc-900/95 border border-zinc-700/50 p-3 rounded-xl shadow-2xl text-white min-w-[240px] backdrop-blur-md">
-                            <div className="flex justify-between items-center mb-3 border-b border-zinc-800 pb-2">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-2 h-2 rounded-full ${selectedPin.isAnonymous ? 'bg-zinc-500' : 'bg-emerald-500'}`} />
-                                    <span className="text-xs font-mono text-zinc-300 font-medium tracking-wide">
-                                        {selectedPin.isAnonymous ? 'ANONYMOUS' : 'USER DROP'}
-                                        {selectedPin.voiceMaskingEnabled && ' • MASKED'}
-                                    </span>
-                                </div>
-                                <button onClick={() => setSelectedPin(null)} className="text-zinc-500 hover:text-white transition-colors">&times;</button>
-                            </div>
-                            <AudioPlayer src={selectedPin.audioUrl} autoplay />
+                        <div className="relative group">
+                            {/* Animated Glow / Aura */}
+                            <div className="absolute -inset-4 bg-gradient-to-tr from-cyan-500/40 to-purple-600/40 rounded-full blur-2xl animate-pulse" />
 
-                            <div className="flex gap-2 mt-3">
-                                {user && selectedPin.creatorId !== user.id && (
+                            <div className="relative bg-zinc-950/90 border border-white/10 rounded-[32px] p-6 shadow-2xl backdrop-blur-xl flex flex-col items-center gap-4 text-center min-w-[260px] max-w-[280px]">
+                                {/* Header / User Info */}
+                                <div className="flex items-center gap-2 mb-1">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center border ${selectedPin.isAnonymous ? 'border-zinc-500 bg-zinc-800' : 'border-indigo-500 bg-indigo-900/50'}`}>
+                                        <UserIcon size={14} className="text-white/80" />
+                                    </div>
+                                    <div className="flex flex-col items-start">
+                                        <div className="flex items-center gap-1">
+                                            <span className="text-sm font-bold text-white tracking-wide">
+                                                {selectedPin.isAnonymous ? 'Anonymous' : 'User'}
+                                            </span>
+                                            {selectedPin.isVerified && <ShieldCheck size={12} className="text-blue-400" />}
+                                        </div>
+                                        <span className="text-[10px] text-zinc-400 font-mono">
+                                            {selectedPinVibe ? selectedPinVibe.vibe : 'Analysing Vibe...'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Visualizer / Waveform Graphic */}
+                                <div className="w-full h-12 flex items-center justify-center gap-1">
+                                    {[...Array(8)].map((_, i) => (
+                                        <div key={i} className="w-1.5 bg-gradient-to-t from-cyan-400 to-purple-500 rounded-full animate-wave" style={{
+                                            height: `${Math.random() * 80 + 20}%`,
+                                            animationDelay: `${i * 0.1}s`
+                                        }} />
+                                    ))}
+                                </div>
+
+                                {/* Custom Audio Player UI */}
+                                <div className="w-full">
+                                    <AudioPlayer src={selectedPin.audioUrl} autoplay />
+                                </div>
+
+                                {/* Actions */}
+                                <div className="flex w-full gap-2 mt-2">
                                     <button
                                         onClick={() => {
-                                            setConnectingUserId(selectedPin.creatorId);
-                                            setShowConnectionPrompt(true);
+                                            if (selectedPin.creatorId) {
+                                                setConnectingUserId(selectedPin.creatorId);
+                                                setShowConnectionPrompt(true);
+                                            }
                                         }}
-                                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 rounded-lg flex items-center justify-center gap-1 transition-colors"
+                                        className="flex-1 py-2 rounded-full bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-colors flex items-center justify-center gap-1"
                                     >
                                         <UserPlus size={14} /> Connect
                                     </button>
+                                    <button className="p-2 rounded-full bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+                                        <MessageSquare size={16} />
+                                    </button>
+                                </div>
+
+                                {selectedPinVibe?.intent && (
+                                    <div className="absolute -top-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg">
+                                        ✨ {selectedPinVibe.intent}
+                                    </div>
                                 )}
-                                <SafetyActions
-                                    targetType="PIN"
-                                    targetId={selectedPin.id.toString()}
-                                    onActionComplete={() => {
-                                        setSelectedPin(null);
-                                        fetchPins();
-                                    }}
-                                />
-                                <BlockUserAction
-                                    userId={selectedPin.creatorId}
-                                    onBlock={() => {
-                                        setSelectedPin(null);
-                                        fetchPins();
-                                    }}
-                                />
                             </div>
                         </div>
                     </Popup>
@@ -321,6 +365,19 @@ export default function MapView({ initialViewState }: MapViewProps) {
                     />
                 </div>
             )}
+
+            {/* Eavesdrop Scroll */}
+            <EavesdropScroll
+                pins={pins}
+                onSelectPin={(id) => {
+                    const pin = pins.find(p => p.id === id);
+                    if (pin) {
+                        setSelectedPin(pin);
+                        setViewState(prev => ({ ...prev, latitude: pin.location.coordinates[1], longitude: pin.location.coordinates[0], zoom: 16 }));
+                        analyzeVoice(pin.audioUrl).then(setSelectedPinVibe);
+                    }
+                }}
+            />
         </div>
     );
 }

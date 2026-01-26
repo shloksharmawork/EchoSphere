@@ -123,3 +123,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  @keyframes wave {
+    0%, 100% { transform: scaleY(0.5); opacity: 0.5; }
+    50% { transform: scaleY(1.2); opacity: 1; }
+  }
+  .animate-wave {
+    animation: wave 1.2s ease-in-out infinite;
+  }
+  
+  /* Hide scrollbar for Eavesdrop Scroll */
+  .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+  }
+  .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+}
